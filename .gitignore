@@ -1,0 +1,38 @@
+# Remote datasets and generated artifacts
+/data/
+/checkpoints/
+/outputs/
+/logs/
+*.h5ad
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.loom
+*.zarr/
+
+# Python and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

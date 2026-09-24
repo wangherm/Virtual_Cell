@@ -1,0 +1,4 @@
+# Minimal local development environment; install from the repository root.
+-e .[dev]
+# Add scientific dependencies when the data/model implementation is selected.
+# Install a CUDA-compatible PyTorch build separately on AutoDL.
