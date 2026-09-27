@@ -1,13 +1,28 @@
 name: tests
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   cpu-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: python -m pip install -e '.[dev]'
-      - run: python -m pytest -q
+      - name: Install through the documented server setup
+        run: bash scripts/setup.sh cpu
+      - name: Check dependencies and core tests
+        run: |
+          .venv/bin/python -m pip check
+          .venv/bin/python -m vcell --help
+          .venv/bin/python -m pytest -q
+      - name: Run terminal workflow outside the checkout
+        run: |
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_test.py" --work-dir "$RUNNER_TEMP/vcell-smoke" --device cpu
+      - name: Resume the exact terminal run
+        run: |
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_test.py" --work-dir "$RUNNER_TEMP/vcell-smoke" --device cpu --resume

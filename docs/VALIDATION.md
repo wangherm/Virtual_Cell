@@ -1,29 +1,47 @@
-# v0.2.1 验证记录
+# Validation scope
 
-日期：2026 年 9 月 27 日。
+## Server workflow (v0.3.0)
 
-## 本次验证
+The [tests workflow](../.github/workflows/tests.yml) validates the documented Linux
+server path on CPU:
 
-- 在未安装 OpenAI SDK 的环境中安装主项目和 dev 依赖，运行 **25 项核心测试，全部通过**。
-- 普通 CLI 帮助不显示 agent，主 Colab 没有外部模型 API 或密钥设置。
-- 默认 pytest 只运行 tests；可选控制模块测试位于 optional_tests，不参与主安装。
-- 教师学生训练、损失、数据处理与评价算法沿用 v0.2。
-- 模拟 Colab 的文件上传和本地保存路径，实际执行新版 notebook 第 1、3、4、5、6 步的核心代码，
-  完成原始合成 counts、预处理、四教师、四学生、五组实验、验证报告。第 2 步的安装和测试在此前独立执行。
-- 合成 smoke 为 96 genes、20 targets、4 contexts，教师和学生各最多 5 epoch。
-- 核心测试覆盖四学生损失梯度、外部教师缓存、续训、测试真值隔离、仅对照推理和 notebook 语法。
-- 16 页中文 Word 指南经过渲染及逐页版式检查；同内容 Markdown 位于 docs/STRATEGY_AND_HOWTO_ZH.md。
+1. Install using `bash scripts/setup.sh cpu` in a fresh Python 3.12 environment.
+2. Run dependency checks, CLI help, core tests and overwrite-protection tests.
+3. Run `scripts/smoke_test.py` from outside the repository checkout.
+4. Resume the same smoke run and regenerate its validation report.
 
-## 实际环境
+Default test dependencies exclude notebook tooling and external model APIs.
+Notebook schema validation is opt-in via `.[dev,notebook]`; API-controller tests
+are opt-in via `.[dev,agent]`. See the [latest CI runs](https://github.com/wangherm/Virtual_Cell/actions/workflows/tests.yml)
+for the result on each specific commit. A configured test is not a passed test.
 
-Python 3.12；PyTorch 2.14.0+cu130，测试设备为 CPU；NumPy 2.3.5；
-pandas 2.2.3；SciPy 1.18.1；AnnData 0.12.19；pytest 9.1.1；nbformat 5.11.1。
+The server refactor changes documentation, entry scripts, optional dependencies
+and project organization. Model, loss, preprocessing and evaluation algorithms
+are preserved. The version and CUDA diagnostic text change source fingerprints,
+so old v0.2.1 runs should be resumed from their original checkout.
 
-## 尚未执行
+## Historical v0.2.1 evidence
 
-真实 Colab 托管 GPU 环境、完整 Replogle/Nadig 训练、实际 GitHub 推送及在线模型 API。
-本次没有重新运行可选控制模块测试，其说明单独保留在 docs/advanced/AGENT.md。
+The supplied release documented 25 passing core tests (including one notebook
+schema test) and a synthetic workflow with 96 genes, 20 targets, four contexts,
+four teachers and five four-student modes, each with up to five epochs.
 
-本次合成短训练没有显示对比损失收益，mean_transfer 仍更强。
-docs/qa 的报告来自本次 notebook 核心流程验证，不构成真实生物数据上的性能证据。
+The original import also passed [GitHub CPU CI](https://github.com/wangherm/Virtual_Cell/actions/runs/36340750612).
+The archived CSV/HTML files in [qa](qa/) came from the supplied v0.2.1 synthetic
+validation, not a new real-data or server-GPU experiment. The historical
+[Chinese guide](legacy/STRATEGY_AND_HOWTO_ZH.md) describes that old notebook workflow.
 
+Those short synthetic experiments did not establish a benefit from the
+contrastive objective; the mean-transfer baseline remained stronger. Treat
+synthetic runs as execution checks, not biological evidence.
+
+## Not established by CPU CI
+
+- CUDA installation, memory requirements and training on your specific server.
+- Complete real-data preprocessing/training on the Replogle/Nadig releases.
+- Biological generalization or superiority of any teacher/student objective.
+- Online calls from the optional API controller.
+
+Run a CUDA smoke check on the allocated server and inspect its audit, losses and
+GPU memory before full training. Record the Git commit, environment and effective
+configuration for every real experiment.

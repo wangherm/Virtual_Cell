@@ -250,18 +250,6 @@ def test_test_targets_do_not_change_fitted_predictions(demo, tmp_path):
         assert np.array_equal(pa[name], pb[name])
 
 
-def test_notebook_schema_and_code_syntax():
-    import ast
-    import nbformat
-    nb = nbformat.read(ROOT / "notebooks/VCell_TeacherStudent_Colab.ipynb", as_version=4)
-    nbformat.validate(nb)
-    for cell in nb.cells:
-        if cell.cell_type == "code":
-            ast.parse(cell.source)
-            assert cell.execution_count is None
-            assert not cell.outputs
-
-
 def test_external_teachers_are_used_without_training_references(demo, tmp_path):
     from vcell.utils import write_json
     d = load_prepared(demo)

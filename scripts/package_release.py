@@ -1,4 +1,4 @@
-"""Build a source-only release; optionally attach an explicitly labelled synthetic QA report."""
+"""Build a source release, excluding server-local configs, data and environments."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -15,13 +15,14 @@ def build(output, qa_run=None):
         shutil.copy2(run / "report.html", qa / "synthetic_validation_report.html")
         shutil.copy2(run / "summary.csv", qa / "synthetic_summary.csv")
         shutil.copy2(run / "paired_comparisons.csv", qa / "synthetic_paired_comparisons.csv")
-    allowed = ["src", "configs", "tests", "optional_tests", "scripts", "notebooks", "docs", ".github",
-               "README.md", "pyproject.toml", ".gitignore", "LICENSE"]
+    allowed = ["src", "configs", "tests", "optional_tests", "scripts", "examples", "docs", ".github",
+               "README.md", "pyproject.toml", ".gitignore", ".gitattributes", "LICENSE"]
     files = []
     for name in allowed:
         path = root / name
         files.extend([path] if path.is_file() else [p for p in path.rglob("*") if p.is_file()])
-    files = [p for p in files if "__pycache__" not in p.parts and not p.suffix == ".pyc"
+    files = [p for p in files if not set(p.relative_to(root).parts) & {"__pycache__", ".pytest_cache", ".venv", "local"}
+             and p.suffix not in {".pyc", ".pt", ".ckpt", ".h5ad", ".npz"}
              and not any(x.endswith(".egg-info") for x in p.parts)]
     output = Path(output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

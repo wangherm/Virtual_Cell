@@ -1,0 +1,32 @@
+# Real-data pilot: same architectures/loss settings as real.yaml, shorter budget.
+seed: 17
+data_dir: data/prepared
+output_dir: runs/pilot
+device: auto
+num_threads: 4
+seeds: [0]
+teacher_epochs: 20
+student_epochs: 20
+patience: 6
+batch_size: 64
+learning_rate: 0.0005
+weight_decay: 0.0001
+projection_dim: 32
+kd_weight: 0.3
+peer_weight: 0.1
+contrast_weight: 0.02
+temperature: 0.2
+warmup_epochs: 5
+top_k: 50
+bootstrap_repeats: 2000
+experiments: [supervised, kd, mutual, contrastive, mutual_contrastive]
+teachers:
+  - {name: t_residual, architecture: residual, hidden: 256, dropout: 0.1}
+  - {name: t_module, architecture: module, hidden: 256, dropout: 0.1}
+  - {name: t_mlp, architecture: mlp, hidden: 256, dropout: 0.1}
+  - {name: t_bilinear, architecture: bilinear, hidden: 256, dropout: 0.1}
+students:
+  - {name: s_residual, architecture: residual, hidden: 64, dropout: 0.1}
+  - {name: s_module, architecture: module, hidden: 64, dropout: 0.1}
+  - {name: s_mlp, architecture: mlp, hidden: 64, dropout: 0.1}
+  - {name: s_bilinear, architecture: bilinear, hidden: 64, dropout: 0.1}

@@ -1,3 +1,5 @@
+> Historical v0.2.1 Colab walkthrough. For the current server workflow, see [SERVER.md](../SERVER.md).
+
 # VCell 教师学生实验策略与部署指南
 
 版本 v0.2.1　更新日期 2026 年 9 月 27 日

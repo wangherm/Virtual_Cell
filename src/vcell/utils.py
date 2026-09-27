@@ -62,5 +62,5 @@ def device_from(name):
     if name == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if str(name).startswith("cuda") and not torch.cuda.is_available():
-        raise RuntimeError("CUDA requested but unavailable. Use --device cpu or enable Colab GPU.")
+        raise RuntimeError("CUDA requested but unavailable. Use --device cpu, or check the server GPU allocation, driver and PyTorch CUDA build.")
     return torch.device(name)

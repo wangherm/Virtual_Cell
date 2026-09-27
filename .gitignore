@@ -17,3 +17,11 @@ checkpoints/
 credentials*
 *token*
 !src/vcell/models.py
+
+# Server-local configuration, environment and logs
+configs/local/
+logs/
+*.log
+.env.*
+build/
+dist/
