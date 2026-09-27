@@ -1,0 +1,46 @@
+# Paths relative to this YAML. Inspect your actual obs/var before editing.
+output_dir: ../data/prepared
+train_contexts: [K562, RPE1]
+val_contexts: [HepG2]
+test_contexts: [Jurkat]
+target_sum: 10000
+max_genes: 2000
+max_perturbations: 200
+min_cells: 20
+min_control_cells: 30
+chunk_size: 2048
+# This version intentionally tests seen perturbations in unseen contexts.
+seed: 17
+datasets:
+  - id: replogle_k562_essential
+    path: ../data/raw/k562.h5ad
+    context: K562
+    gene_key: null  # null means var_names; do NOT guess gene identifiers
+    perturbation_key: gene
+    batch_key: gem_group
+    count_layer: X  # X or the exact layers key containing RAW COUNTS
+    control_values: [non-targeting]
+  - id: replogle_rpe1
+    path: ../data/raw/rpe1.h5ad
+    context: RPE1
+    gene_key: null
+    perturbation_key: gene
+    batch_key: gem_group
+    count_layer: X
+    control_values: [non-targeting]
+  - id: nadig_hepg2
+    path: ../data/raw/hepg2.h5ad
+    context: HepG2
+    gene_key: null
+    perturbation_key: gene
+    batch_key: gem_group
+    count_layer: X
+    control_values: [non-targeting]
+  - id: nadig_jurkat
+    path: ../data/raw/jurkat.h5ad
+    context: Jurkat
+    gene_key: null
+    perturbation_key: gene
+    batch_key: gem_group
+    count_layer: X
+    control_values: [non-targeting]

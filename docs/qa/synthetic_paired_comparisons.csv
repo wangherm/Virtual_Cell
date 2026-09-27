@@ -1,0 +1,7 @@
+split,reference,candidate,delta_mse,ci_low,ci_high,n_perturbations,n_contexts,interpretation
+val,supervised/mean,kd/mean,0.0007136780768632889,0.00045202754772617483,0.0010116971126990393,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"
+val,kd/mean,mutual/mean,0.00010118373029399663,6.437944248318672e-05,0.00014095364495005926,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"
+val,kd/mean,contrastive/mean,0.0001276217371923849,2.4889315966447613e-06,0.00026321358018321916,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"
+val,mutual/mean,mutual_contrastive/mean,0.00012115835852455348,-1.0828859871025987e-06,0.00025201675089192577,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"
+val,supervised/valmix,mutual_contrastive/valmix,0.0010622658301144838,0.0004945130793203135,0.0016831480985274538,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"
+val,teachers/mean,kd/mean,0.02346617355942726,0.016274879174306988,0.032725133653730164,20,1,"negative favors candidate; conditional on evaluated contexts, not a cross-context population CI"

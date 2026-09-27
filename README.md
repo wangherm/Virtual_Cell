@@ -1,88 +1,59 @@
-# Virtual Cell
+# VCell 教师学生实验
+v0.2.1 · 四个参考教师、四个学生、五组固定对照。
 
-单细胞扰动响应预测研究项目。Windows / VS Code 本地开发，通过私有 GitHub
-仓库同步代码，AutoDL 负责 GPU 执行。
+先读 [实验策略与部署指南](docs/STRATEGY_AND_HOWTO_ZH.md)，再打开
+`notebooks/VCell_TeacherStudent_Colab.ipynb`。第一次只运行 notebook 第 1 至 6 步。
 
-当前是项目骨架：尚未实现数据加载、模型、训练或评估。实验配置是待接入的模板。
+## 这一轮做什么
 
-```text
-Virtual_Cell/
-├── src/virtual_cell/
-│   ├── data/           # 数据读取、预处理、划分
-│   ├── models/         # 基线、编码器、扰动响应模型
-│   ├── priors/         # GRN、转录因子等先验
-│   ├── training/       # 训练循环、损失、checkpoint 恢复
-│   ├── evaluation/     # 预测、指标、分布评估
-│   └── utils/          # 配置、路径、随机种子等公共功能
-├── configs/
-│   ├── smoke_test.yaml
-│   └── full_train.yaml
-├── scripts/            # 工作目录初始化与 GPU 环境检查
-├── tests/              # 后续添加不依赖真实数据的小测试
-├── notebooks/          # 探索分析；提交前清除大型输出
-├── docs/               # 工作流与数据约定
-├── data/               # Git 忽略；raw / processed / priors
-├── checkpoints/        # Git 忽略
-├── outputs/            # Git 忽略
-├── logs/               # Git 忽略
-├── AGENTS.md
-├── pyproject.toml
-├── requirements.txt
-└── README.md
-```
+使用对照平均表达和扰动 ID，预测跨背景的平均表达变化。教师从头训练；
+目前不加载现成基础模型权重，也不生成单细胞分布或正式比赛提交文件。
 
-## LOCAL：Windows PowerShell
+| 实验 | 真实监督 | 蒸馏 | 互学 | 对比 |
+|---|---|---|---|---|
+| supervised | 有 | 无 | 无 | 无 |
+| kd | 有 | 有 | 无 | 无 |
+| mutual | 有 | 有 | 有 | 无 |
+| contrastive | 有 | 有 | 无 | 有 |
+| mutual_contrastive | 有 | 有 | 有 | 有 |
 
-```powershell
-cd "$HOME\Desktop\Virtual_Cell"
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts/init_workspace.py
-.\.venv\Scripts\python.exe -m compileall -q src scripts
-```
+主比较：contrastive/mean 对 kd/mean。先固定 4 教师和 4 学生，不同时搜索数量。
+数据、结构和损失实现沿用 v0.2；本次整理部署入口和教学文档。
 
-本地基础环境不安装 PyTorch，也不需要 GPU 或大数据。
-依赖目前是基础版本范围；模型选定、AutoDL 环境验证后再记录确切版本。
+## Colab
 
-首次推送：先在 GitHub 创建 **Private** 空仓库，不勾选自动生成 README、
-License 或 .gitignore，然后执行（替换仓库地址）：
+1. 上传 `VCell_TeacherStudent_Colab.ipynb`。
+2. 第 1 格上传 `VCell_TeacherStudent_v0.2.1.zip`。
+3. 安装后默认运行 25 项核心测试。
+4. 挂载 Drive，生成合成数据，运行五组实验，读取验证报告。
+5. 按指南检查真实 h5ad 并编辑数据 YAML，再手动开启真实训练。
 
-```powershell
-git init -b main
-git status
-git add .
-git diff --cached --stat
-git diff --cached
-git commit -m "Initialize Virtual Cell project structure"
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-git push -u origin main
-```
-
-如果 Git 要求身份信息，先设置自己的 `git config user.name` 和
-`git config user.email`。认证使用 GitHub 支持的 SSH 或令牌方式，勿提交凭据。
-
-## AUTODL：SSH 登录后
+## 本地或服务器
 
 ```bash
-cd /root/autodl-tmp
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git virtual_cell
-cd virtual_cell
-python -m pip install -r requirements.txt
-python scripts/init_workspace.py
-nvidia-smi
-python scripts/check_gpu.py
+python -m pip install -e '.[dev]'
+python -m pytest -q
+python -m vcell demo --output data/demo
+python -m vcell run --config configs/smoke.yaml
 ```
 
-使用已配置 CUDA 版 PyTorch 的环境，或按服务器 CUDA 环境单独安装 PyTorch。
-`check_gpu.py` 成功时打印 PyTorch 版本、`CUDA available: True` 和 GPU 名称。
-缺少 PyTorch 或 CUDA 不可用时返回非零退出码。
-**这只是环境检查，不是模型训练 smoke test；当前没有训练命令。**
+CPU 环境可先从 PyTorch 官方 CPU 索引安装 torch，再安装本项目。
+Colab 安装使用其已有的兼容 PyTorch 环境。
 
-后续同步代码用 `git pull --ff-only`。正式训练前先实现并通过
-`configs/smoke_test.yaml` 对应的小规模实验；长任务使用 `tmux new -s vcell`。
+默认安装和核心测试不依赖外部模型 API。可选扩展独立保留，不参与以上流程。
 
-Git 不保存空目录或被忽略的运行目录，因此每次 clone 后运行
-`python scripts/init_workspace.py`。详细约定见 [工作流](docs/workflow.md)。
+## 数据与结果
 
-下一步：确定首个数据集、输入表达矩阵格式、扰动标签及训练/验证/测试划分，
-再实现一个简单基线和真实的 GPU smoke test。
+真实数据模板：`configs/data.example.yaml`。先运行 inspect 检查文件，不照抄字段。
+模型参数：`configs/real.yaml`，默认三个 seed。
+所有真实标签仅在所属分区使用：train 更新参数，val 早停和选权重，test 最后评价。
+
+结果包含 `evaluation_validation/report.html`、`summary.csv`、`paired_comparisons.csv`，
+以及 `seed_*/MODE/best.pt` 和 `last.pt`。
+同一版本、配置和准备数据中断续训时加 `--resume`。
+新版本实验使用新输出目录，不覆盖旧运行。
+
+[外部教师缓存](docs/EXTERNAL_TEACHERS.md)　[验证记录](docs/VALIDATION.md)　[方法与来源](docs/REFERENCES.md)
+
+代码 MIT；外部数据和权重遵循各自许可。
+

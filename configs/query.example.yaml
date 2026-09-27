@@ -1,0 +1,12 @@
+# Inference ONLY: no test perturbation outcomes required.
+chunk_size: 2048
+min_control_cells: 30
+datasets:
+  - id: new_context_controls
+    path: ../data/raw/new_context_controls.h5ad
+    context: NewContext
+    gene_key: null
+    perturbation_key: gene
+    batch_key: gem_group
+    count_layer: X
+    control_values: [non-targeting]

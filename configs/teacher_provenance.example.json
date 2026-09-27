@@ -1,0 +1,10 @@
+{
+  "teacher_name": "REPLACE_WITH_ACTUAL_MODEL",
+  "model_revision": "REPLACE_WITH_CHECKPOINT_HASH_OR_HF_COMMIT",
+  "training_contexts": ["K562", "RPE1"],
+  "excluded_contexts": ["HepG2", "Jurkat"],
+  "source": "REPLACE_WITH_ACTUAL_SOURCE_URL",
+  "license": "REPLACE_WITH_VERIFIED_LICENSE_AND_OUTPUT_USE_TERMS",
+  "audit_notes": "Document exact training access, counts normalization, output genes and group alignment. Merely setting the flag below is NOT evidence.",
+  "declared_no_holdout_perturbations": false
+}
