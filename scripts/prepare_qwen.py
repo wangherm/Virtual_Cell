@@ -19,7 +19,7 @@ def matches(path, expected):
     return digest.hexdigest() == expected["sha256"]
 
 
-def prepare(folder, endpoint, lock=None, download=None):
+def prepare(folder, endpoint, lock=None, download=None, label="QWEN"):
     lock = lock or json.loads(LOCK.read_text(encoding="utf-8"))
     folder = Path(folder).resolve()
     folder.mkdir(parents=True, exist_ok=True)
@@ -36,7 +36,7 @@ def prepare(folder, endpoint, lock=None, download=None):
                      force_download=(folder / name).exists())
             if not matches(folder / name, lock["files"][name]):
                 raise ValueError(f"Checksum mismatch: {name}. Refusing to load this file.")
-    print(f"QWEN SNAPSHOT VERIFIED: {folder}", flush=True)
+    print(f"{label} SNAPSHOT VERIFIED: {folder}", flush=True)
     return folder
 
 

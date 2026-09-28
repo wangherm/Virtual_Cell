@@ -16,7 +16,7 @@ def build(output, qa_run=None):
         shutil.copy2(run / "summary.csv", qa / "synthetic_summary.csv")
         shutil.copy2(run / "paired_comparisons.csv", qa / "synthetic_paired_comparisons.csv")
     allowed = ["src", "configs", "tests", "optional_tests", "scripts", "examples", "docs", ".github",
-               "README.md", "pyproject.toml", ".gitignore", ".gitattributes", "LICENSE"]
+               "README.md", "pyproject.toml", ".gitignore", ".gitattributes", "LICENSE", "THIRD_PARTY_NOTICES.md"]
     files = []
     for name in allowed:
         path = root / name

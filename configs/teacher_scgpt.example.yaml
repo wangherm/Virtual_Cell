@@ -1,4 +1,5 @@
-# Preparation template. Replace checkpoint paths/hash and audit provenance first.
+# Prefer scripts/run_scgpt_autodl.sh for the existing four-dataset pilot.
+# Manual template: download the locked checkpoint and supply reviewed provenance.
 family: scgpt
 data_dir: /root/autodl-tmp/vcell-work/prepared/real_min10_01
 output: /root/autodl-tmp/vcell-work/teachers/scgpt_features.npz
@@ -8,10 +9,12 @@ seed: 0
 max_control_cells: 8
 gene_symbol_key: gene_name
 model:
-  source_dir: /root/autodl-tmp/vcell-work/vendor/scGPT
-  source_revision: cebd6fae655b9c585a4807daa3ac31bb764f06b4
-  checkpoint: /root/autodl-tmp/vcell-work/models/scgpt/best_model.pt
-  checkpoint_sha256: REPLACE_WITH_VERIFIED_SHA256
-  args: /root/autodl-tmp/vcell-work/models/scgpt/args.json
-  vocab: /root/autodl-tmp/vcell-work/models/scgpt/vocab.json
-  max_input_genes: 1536
+  implementation: vcell_frozen_scgpt_v1
+  checkpoint: /root/autodl-tmp/vcell-work/models/scGPT-human/best_model.pt
+  checkpoint_sha256: 6cb5d451ab5c4b33eb673adbe4fddc61d2389df1b89b7651a9fe2e557572b922
+  args: /root/autodl-tmp/vcell-work/models/scGPT-human/args.json
+  args_sha256: c18e075e018140cb8b2d9029387b9de26607a5ce6a8ccabd6ead70cd76b95d60
+  vocab: /root/autodl-tmp/vcell-work/models/scGPT-human/vocab.json
+  vocab_sha256: acca93d114ca62c3f0f50debbd23e8c87f0714f4737764454f6b2b13f2e8580f
+  max_input_genes: 1200
+  seed: 0

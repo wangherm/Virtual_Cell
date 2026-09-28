@@ -35,11 +35,24 @@ with `bash scripts/run_qwen_autodl.sh --resume`. Use a fresh output directory fo
 changed code/configuration. See **[the foundation-model guide](docs/FOUNDATION.md)**
 for checkpoint reload, larger pilots and the three-teacher preparation pipeline.
 
-The teacher adapters are native State prediction and frozen scGPT/scFoundation
-control encoders with a trained conditional response head. Their real-weight
-compatibility and checkpoint training provenance must be verified on the server;
-example teacher configurations deliberately fail until paths, hashes and audits
-are supplied. Missing teachers are never replaced with random networks.
+After the Qwen smoke succeeds, connect the first real biological teacher:
+
+```bash
+bash scripts/run_scgpt_autodl.sh
+```
+
+This downloads and verifies the author-released scGPT-human checkpoint (about
+207 MB), extracts frozen control features, trains a conditional response head,
+and runs supervised versus scGPT-distilled Qwen. It reuses the working CUDA
+environment and local Qwen files. See **[the scGPT run guide](docs/SCGPT_FIRST_RUN.md)**
+for progress, outputs, larger experiments and the published-source audit limits.
+
+There is one Qwen student architecture; each comparison arm trains a separate
+copy from the same initialization. The three-teacher joint arm is still gated:
+State needs a compatible checkpoint excluding both held-out contexts, and
+scFoundation still needs real-weight verification. Missing teachers are never
+replaced with random networks. scGPT/scFoundation use custom response heads;
+State uses native State Transition predictions.
 
 ## Quick start on a server
 

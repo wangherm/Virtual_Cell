@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Qwen3 student | Pinned HF backbone, continuous control tokens, perturbation text, final prediction token, LoRA q/v projections, signed delta head | Run the AutoDL smoke command below |
 | State | Native State Transition checkpoint inference on genuine matched control cells; aggregate expression and subtract the prepared baseline | Pending compatible checkpoint, gene-order/scale audit and holdout audit |
-| scGPT | Strictly load pretrained gene/value/transformer encoders; freeze, pool actual control-cell embeddings, train a conditional response head | Pending official weights and isolated-environment check |
+| scGPT | Locked official weights, binned inputs, frozen encoder and a conditional response head | Actual checkpoint loaded on CPU; [AutoDL launcher ready](SCGPT_FIRST_RUN.md) |
 | scFoundation | Strictly load the official cell encoder checkpoint; freeze, pool actual control-cell embeddings, train a conditional response head | Pending official weights and isolated-environment check |
 | Distillation | Same Qwen initialization and row selection; supervised, three individual-teacher arms, joint arm; no fake fallback | Offline test fixtures cover the training/cache/checkpoint path |
 
@@ -23,6 +23,9 @@ or Blackwell CUDA performance. Tiny random Qwen fixtures separately test gradien
 interrupted resume, checkpoint reload and three-cache distillation without network.
 
 ## First run on AutoDL
+
+If the supervised Qwen smoke has already passed, continue with
+**[the scGPT teacher and distillation run](SCGPT_FIRST_RUN.md)**.
 
 If `huggingface.co` is unreachable, use the public mirror recommended in
 [AutoDL's networking guide](https://www.autodl.com/docs/network_turbo/):

@@ -124,6 +124,7 @@ def export_native_teacher(cfg):
         np.savez_compressed(output, features=features, row_ids=data["meta"].row_id.to_numpy(dtype="U"),
                             data_fingerprint=data["audit"]["fingerprint"])
         write_json(output.with_suffix(".json"), {**provenance, **source,
+                   "feature_file_sha256": file_sha256(output),
                    "artifact_kind": "frozen_control_features_NOT_predictions"})
     return output
 
@@ -144,6 +145,8 @@ def fit_feature_teacher(cfg):
     data = load_prepared(cfg["data_dir"])
     features_path = Path(cfg["features"])
     provenance = json.loads(features_path.with_suffix(".json").read_text())
+    if provenance.get("feature_file_sha256") and provenance["feature_file_sha256"] != file_sha256(features_path):
+        raise ValueError("Frozen feature file checksum mismatch")
     if provenance.get("artifact_kind") != "frozen_control_features_NOT_predictions":
         raise ValueError("Expected native frozen control features")
     if provenance.get("teacher_family") not in {"scgpt", "scfoundation"}:

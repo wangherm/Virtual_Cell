@@ -49,20 +49,23 @@ def select_symbols(symbols, vocabulary):
 
 class ScGPTEncoder:
     def __init__(self, cfg, device):
-        root = verify_source(cfg)
         verify_weights(cfg)
-        sys.path.insert(0, str(root))
-        from scgpt.model import TransformerModel
+        from .scgpt_encoder import FrozenScGPT
+        if cfg.get("implementation") != "vcell_frozen_scgpt_v1":
+            raise ValueError("Use the verified scGPT launcher or set implementation: vcell_frozen_scgpt_v1")
+        for key in ("args", "vocab"):
+            if file_sha256(cfg[key]) != cfg[key + "_sha256"]:
+                raise ValueError(f"scGPT {key} checksum mismatch")
         args = json.loads(Path(cfg["args"]).read_text())
         self.vocab = json.loads(Path(cfg["vocab"]).read_text())
         if not isinstance(self.vocab, dict) or sorted(self.vocab.values()) != list(range(len(self.vocab))):
             raise ValueError("Expected contiguous token IDs in official vocab.json")
-        self.device, self.max_genes = device, int(cfg.get("max_input_genes", 1536))
-        if self.max_genes < 2:
-            raise ValueError("max_input_genes must be >= 2")
-        self.model = TransformerModel(len(self.vocab), args["embsize"], args["nheads"],
-                                      args["d_hid"], args["nlayers"], vocab=self.vocab,
-                                      dropout=0., use_fast_transformer=False)
+        self.device, self.max_genes = device, int(cfg.get("max_input_genes", args["max_seq_len"]))
+        if not 2 <= self.max_genes <= args["max_seq_len"]:
+            raise ValueError("max_input_genes must be between 2 and the pretrained max_seq_len")
+        self.n_bins = int(args["n_bins"])
+        self.rng = np.random.default_rng(int(cfg.get("seed", 0)))
+        self.model = FrozenScGPT(self.vocab, args)
         raw = torch.load(cfg["checkpoint"], map_location="cpu", weights_only=True)
         # Fused FlashAttention QKV is the same parameter layout used by PyTorch MHA.
         raw = {k.replace(".self_attn.Wqkv.weight", ".self_attn.in_proj_weight")
@@ -76,19 +79,25 @@ class ScGPTEncoder:
 
     @torch.no_grad()
     def encode(self, counts, symbols):
+        from .scgpt_encoder import bin_values
+        counts = np.asarray(counts, dtype=np.float32)
+        if counts.ndim != 2 or counts.shape[1] != len(symbols) or not np.isfinite(counts).all() or (counts < 0).any() or (counts.sum(1) <= 0).any():
+            raise ValueError("Expected finite nonnegative control counts with positive libraries")
         src, _ = select_symbols(symbols, self.vocab)
         ids = np.array([self.vocab[symbols[i]] for i in src])
-        values = np.log1p(counts[:, src] * (10000. / counts.sum(1))[:, None])
+        values = np.log1p(counts * (10000. / counts.sum(1))[:, None])
         output = []
         for row in values:
-            # Control-only feature extraction: the response head separately receives
-            # perturbation identity. No target token is silently lost by this cap.
-            ix = np.argsort(-row, kind="stable")[:self.max_genes]
-            ix = ix[row[ix] > 0]
+            # Bin across the measured full panel before vocabulary filtering and
+            # random truncation. Do not preferentially retain high-expression genes.
+            binned = bin_values(row, self.n_bins, self.rng)[src]
+            ix = np.flatnonzero(row[src] > 0)
             if len(ix) == 0:
                 raise ValueError("A control cell has no expressed genes in scGPT vocabulary")
+            if len(ix) > self.max_genes:
+                ix = np.sort(self.rng.choice(ix, self.max_genes, replace=False))
             token = torch.tensor(ids[ix][None], device=self.device)
-            value = torch.tensor(row[ix][None], device=self.device, dtype=torch.float32)
+            value = torch.tensor(binned[ix][None], device=self.device, dtype=torch.float32)
             encoded = self.model._encode(token, value, torch.zeros_like(token, dtype=torch.bool))
             output.append(encoded.mean(1).cpu().numpy()[0])
         return np.asarray(output, dtype=np.float32)
