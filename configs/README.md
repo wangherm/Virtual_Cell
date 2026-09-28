@@ -11,6 +11,14 @@ an experiment. That directory is ignored by Git.
 | `data.example.yaml` | Raw-count datasets, field names, context splits and preprocessing |
 | `query.example.yaml` | Control-only data for inference in a new context |
 | `teacher_provenance.example.json` | Provenance required to import external teacher predictions |
+| `qwen_smoke.yaml` | Supervised pretrained Qwen plumbing check |
+| `qwen_three_teachers.yaml` | Five comparison arms; requires all three audited teacher caches |
+| `qwen_backbone.lock.json` | Pinned Qwen revision, file sizes and SHA256 hashes |
+| `scgpt_backbone.lock.json` | Pinned author scGPT weights, arguments and vocabulary |
+| `teacher_scgpt.example.yaml` | Manual frozen scGPT extraction; prefer the AutoDL launcher |
+
+`scripts/run_scgpt_autodl.sh` writes effective export/head/Qwen configurations
+under the selected teacher run directory. See [the scGPT guide](../docs/SCGPT_FIRST_RUN.md).
 
 Training configuration paths (`data_dir`, `output_dir`, teacher `cache`) resolve
 against the **shell's current working directory**. Run commands from the repository

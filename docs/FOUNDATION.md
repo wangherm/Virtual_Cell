@@ -128,11 +128,12 @@ vocabulary are mandatory. It never reads perturbed outcomes to form predictions.
 
 ## Preparing the three real teachers
 
-Use separate upstream environments. Do not install all teachers' historical
-dependencies into the working Qwen environment. The native adapters are optional:
-the Qwen smoke test does not import any of the teacher packages.
+For scGPT, use the verified launcher above in the existing Qwen environment; it
+needs no upstream package installation. The manual steps below primarily apply
+to State/scFoundation, which need separate upstream environments. Do not install
+their historical dependencies into the working Qwen environment.
 
-1. Obtain the **official** weights and pinned source checkout. Templates record
+1. For State/scFoundation, obtain **official** weights and a pinned source checkout. Templates record
    source revisions whose APIs were inspected; those are not proof of checkpoint
    compatibility. Follow each upstream repository's installation instructions in
    its own environment, then install this repository there with `pip install -e
@@ -190,7 +191,7 @@ be assumed to contain the correct ordered output gene IDs.
 ### Teacher sources and differences
 
 - [State code](https://github.com/ArcInstitute/state) and [Replogle weights](https://huggingface.co/arcinstitute/ST-HVG-Replogle).
-- [scGPT weights and documentation](https://github.com/bowang-lab/scGPT): obtain `best_model.pt`, `args.json`, `vocab.json` from the official whole-human release. This adapter strictly loads all encoder components and converts fused QKV parameter names to PyTorch MHA names; it rejects partial loads. It uses log1p-normalized control expression and top-expressed genes, an adaptation choice rather than a claim to reproduce every pretraining preprocessing step.
+- [scGPT author weights](https://huggingface.co/wanglab/scGPT-human): the launcher pins `best_model.pt`, `args.json` and `vocab.json`. It strictly loads all encoder components and converts fused QKV names to PyTorch MHA names. Inputs use 51-bin encoding and uniform sampling of at most 1,200 positive genes; see the [exact protocol and audit](SCGPT_FIRST_RUN.md).
 - [scFoundation model instructions](https://github.com/biomap-research/scFoundation/tree/main/model): use the official full `models.ckpt` with its `cell` entry and matching source. A third-party encoder-only repack is not automatically interchangeable. The adapter uses the 19,264-symbol vocabulary and official singlecell/F/f1 cell-embedding preprocessing. Only absent encoder inputs are zero-padded; output predictions are never filled with zeros.
 - [GEARS scope](https://github.com/snap-stanford/GEARS#A-note-on-usage): its default route is not designed for cross-cell-type transfer, so it is not used as a drop-in response teacher here.
 - [scFoundation weight license](https://github.com/biomap-research/scFoundation/blob/main/MODEL_LICENSE): non-commercial research; code and weight licenses differ.
