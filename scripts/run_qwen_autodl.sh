@@ -8,6 +8,8 @@ export TMPDIR="${TMPDIR:-$work/tmp}"
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
 mkdir -p "$HF_HOME" "$TMPDIR" "$work/logs"
+touch "$work/logs/qwen_smoke_01.log"
+exec > >(tee -a "$work/logs/qwen_smoke_01.log") 2>&1
 cd "$repo"
 if [[ ! -x .venv/bin/python ]]; then
   python -m venv --system-site-packages .venv
@@ -15,6 +17,10 @@ fi
 py="$repo/.venv/bin/python"
 "$py" -c 'import torch; print("PyTorch:", torch.__version__, "CUDA:", torch.cuda.is_available()); assert torch.cuda.is_available(), "The current environment needs working CUDA PyTorch"; x=torch.ones(8,device="cuda"); print("GPU:",torch.cuda.get_device_name(0),"probe:",x.sum().item())'
 "$py" -m pip install --no-cache-dir -e '.[foundation]'
+model_dir="${VCELL_QWEN_MODEL_DIR:-$work/models/Qwen3-0.6B-Base}"
+"$py" scripts/prepare_qwen.py --model-dir "$model_dir"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 "$py" -m vcell qwen-run --config configs/qwen_smoke.yaml \
-  --data "$work/prepared/real_min10_01" --output "$work/runs/qwen_smoke_01" "$@" \
-  2>&1 | tee -a "$work/logs/qwen_smoke_01.log"
+  --data "$work/prepared/real_min10_01" --output "$work/runs/qwen_smoke_01" \
+  --model-dir "$model_dir" --offline "$@"

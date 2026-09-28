@@ -45,6 +45,8 @@ def main(argv=None):
     p.add_argument("--data")
     p.add_argument("--output")
     p.add_argument("--resume", action="store_true")
+    p.add_argument("--model-dir", help="Existing local Qwen snapshot; avoids Hub metadata probes")
+    p.add_argument("--offline", action="store_true", help="Forbid model/tokenizer downloads")
     p = sub.add_parser("qwen-predict", help="Reload a Qwen adapter and predict prepared control queries")
     for arg in ("checkpoint", "data", "output"):
         p.add_argument("--" + arg, required=True)
@@ -104,6 +106,13 @@ def main(argv=None):
     elif args.command == "qwen-run":
         from .qwen import run_qwen
         cfg = read_config(args.config)
+        if args.model_dir:
+            model_dir = Path(args.model_dir).resolve()
+            if not model_dir.is_dir():
+                parser.error(f"Local model directory does not exist: {model_dir}")
+            cfg["model"].update(model_id=str(model_dir), revision=None, local_files_only=True)
+        if args.offline:
+            cfg["model"]["local_files_only"] = True
         for key in ("data", "output"):
             value = getattr(args, key)
             if value:

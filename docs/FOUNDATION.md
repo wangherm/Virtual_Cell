@@ -24,6 +24,36 @@ interrupted resume, checkpoint reload and three-cache distillation without netwo
 
 ## First run on AutoDL
 
+If `huggingface.co` is unreachable, use the public mirror recommended in
+[AutoDL's networking guide](https://www.autodl.com/docs/network_turbo/):
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+export HF_HUB_DISABLE_XET=1
+```
+
+Set these in the terminal that launches the script. The launcher now downloads
+six required files into `vcell-work/models/Qwen3-0.6B-Base`, checks their sizes and
+SHA256 hashes against `configs/qwen_backbone.lock.json`, then loads only local
+files with offline mode enabled. The lock was checked against the official HF
+revision's Git/LFS object IDs. Public downloads send no HF token. Verified local
+files are reused without a network call; failed/incomplete downloads can be retried.
+GPU checks, dependency installation and downloads are now logged from startup.
+
+After a previous network failure, interrupt its retries with Ctrl+C, update the
+code and choose a fresh output because the old attempt may have saved a manifest:
+
+```bash
+git pull --ff-only
+export HF_ENDPOINT=https://hf-mirror.com
+export HF_HUB_DISABLE_XET=1
+bash scripts/run_qwen_autodl.sh --output /root/autodl-tmp/vcell-work/runs/qwen_smoke_02
+```
+
+The log remains `logs/qwen_smoke_01.log`. An alternative supported by AutoDL is
+`source /etc/network_turbo` in the launching terminal. Mirror reachability still
+depends on the server network; this is not a guarantee of connectivity.
+
 In a JupyterLab terminal:
 
 ```bash
