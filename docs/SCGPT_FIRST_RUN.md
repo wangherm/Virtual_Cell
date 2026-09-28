@@ -72,6 +72,26 @@ selection. Test expression is never used for fitting or reported in the scores.
 Control observations from held-out contexts are allowed by this conditional
 prediction protocol; their perturbation labels are not used for training.
 
+### Interrupted download
+
+`IncompleteRead` or `ChunkedEncodingError` during `Preparing best_model.pt`
+means the download connection ended before the file finished. Teacher training
+has not started. The downloader retries transient connection/read failures up
+to four times per file and keeps Hub-managed partial files for resumption.
+SHA256 verification is still mandatory. If retries are exhausted, update and
+restart with the same run settings:
+
+```bash
+git pull --ff-only
+bash scripts/run_scgpt_autodl.sh --resume
+```
+
+Retain any original `--name` and `--full-run` options. Verified completed files
+are reused. Do not delete the model directory or reinstall PyTorch. Each launch
+creates a new timestamped log, so reopen the latest log rather than following
+the previous failed run's file. A mirror may require a full retransfer if range
+resumption is unavailable; the script never treats a partial file as complete.
+
 Use `--teacher-only` to stop after the teacher and generated Qwen config. With
 unchanged code/settings, `--resume` reuses verified completed feature/head stages
 and resumes Qwen at epoch boundaries. An interrupted feature write or partially

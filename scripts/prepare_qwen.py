@@ -4,6 +4,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import time
+
+from requests.exceptions import ChunkedEncodingError, ConnectionError, Timeout
 
 
 LOCK = Path(__file__).resolve().parents[1] / "configs/qwen_backbone.lock.json"
@@ -19,7 +22,9 @@ def matches(path, expected):
     return digest.hexdigest() == expected["sha256"]
 
 
-def prepare(folder, endpoint, lock=None, download=None, label="QWEN"):
+def prepare(folder, endpoint, lock=None, download=None, label="QWEN", attempts=4, sleep=time.sleep):
+    if attempts < 1:
+        raise ValueError("Download attempts must be positive")
     lock = lock or json.loads(LOCK.read_text(encoding="utf-8"))
     folder = Path(folder).resolve()
     folder.mkdir(parents=True, exist_ok=True)
@@ -31,9 +36,24 @@ def prepare(folder, endpoint, lock=None, download=None, label="QWEN"):
         print(f"Downloading {lock['model_id']} @ {lock['revision']} from {endpoint}", flush=True)
         for name in missing:
             print(f"Preparing {name}", flush=True)
-            download(repo_id=lock["model_id"], filename=name, revision=lock["revision"],
-                     local_dir=str(folder), endpoint=endpoint, token=False,
-                     force_download=(folder / name).exists())
+            for attempt in range(1, attempts + 1):
+                try:
+                    download(repo_id=lock["model_id"], filename=name, revision=lock["revision"],
+                             local_dir=str(folder), endpoint=endpoint, token=False,
+                             force_download=(folder / name).exists())
+                    break
+                except (ChunkedEncodingError, ConnectionError, Timeout) as exc:
+                    # Keep Hub-managed .incomplete files so the next call can
+                    # resume the saved bytes. Do not disable integrity checks.
+                    if attempt == attempts:
+                        print(f"DOWNLOAD INTERRUPTED: {name}; {attempts} attempts exhausted. "
+                              "Partial files retained; rerun the pipeline with --resume.", flush=True)
+                        raise
+                    delay = min(2 ** attempt, 16)
+                    print(f"DOWNLOAD RETRY: {name}; {type(exc).__name__}; "
+                          f"attempt {attempt + 1}/{attempts} in {delay}s. "
+                          "Keeping partial download files.", flush=True)
+                    sleep(delay)
             if not matches(folder / name, lock["files"][name]):
                 raise ValueError(f"Checksum mismatch: {name}. Refusing to load this file.")
     print(f"{label} SNAPSHOT VERIFIED: {folder}", flush=True)
