@@ -90,7 +90,8 @@ def main(argv=None):
     root.mkdir(parents=True, exist_ok=True)
     write_json(manifest, plan)
     model_dir = prepare(work / "models/scGPT-human", args.endpoint, lock=lock, label="SCGPT")
-    model = {"implementation": "vcell_frozen_scgpt_v1", "seed": 0, "max_input_genes": 1200}
+    model = {"implementation": "vcell_frozen_scgpt_v1", "seed": 0, "max_input_genes": 1200,
+             "duplicate_symbol_policy": "sum_counts"}
     for key, name in (("checkpoint", "best_model.pt"), ("args", "args.json"), ("vocab", "vocab.json")):
         model[key] = str(model_dir / name)
         model[key + "_sha256"] = lock["files"][name]["sha256"]

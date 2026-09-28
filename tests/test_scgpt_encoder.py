@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import pytest
 import torch
+import anndata as ad
 
 from vcell.data import load_prepared
 from vcell.external_models import ScGPTEncoder
@@ -83,6 +84,15 @@ def test_native_encoder_to_task_head_cache(tmp_path):
     data_dir = make_demo(tmp_path / "demo", genes=16, targets=4, cells=8)
     data = load_prepared(data_dir)
     _, model = tiny_checkpoint(tmp_path, data["genes"].tolist())
+    model["duplicate_symbol_policy"] = "sum_counts"
+    # Preserve source IDs and prepared targets; only the symbol annotation has
+    # a collision, as in the real-data failure reported on AutoDL.
+    symbols = data["genes"].tolist()
+    symbols[-1] = symbols[-2]
+    for source in data["audit"]["sources"]:
+        raw = ad.read_h5ad(source["path"])
+        raw.var["gene_name"] = symbols
+        raw.write_h5ad(source["path"])
     provenance = dict(teacher_name="TEST ONLY", teacher_family="scgpt", model_revision="TEST",
         training_contexts=[], excluded_contexts=["HepG2", "Jurkat"], source="random unit test fixture",
         license="test", audit_notes="Not biological evidence", declared_no_holdout_perturbations=True,
@@ -90,7 +100,7 @@ def test_native_encoder_to_task_head_cache(tmp_path):
     write_json(tmp_path / "provenance.json", provenance)
     cfg = dict(family="scgpt", data_dir=str(data_dir), output=str(tmp_path / "features.npz"),
         provenance=str(tmp_path / "provenance.json"), device="cpu", seed=0,
-        max_control_cells=2, gene_symbol_key=None, model=model)
+        max_control_cells=2, gene_symbol_key="gene_name", model=model)
     features = export_native_teacher(cfg)
     fit = dict(data_dir=str(data_dir), features=str(features), output_dir=str(tmp_path / "head"),
         device="cpu", seed=0, hidden=8, epochs=2, patience=2, batch_size=8, learning_rate=.001)
@@ -99,6 +109,27 @@ def test_native_encoder_to_task_head_cache(tmp_path):
     assert pred.shape == data["delta"].shape and np.isfinite(pred).all()
     assert info["feature_file_sha256"] == file_sha256(features)
     assert set(info["training_contexts"]) == {"K562", "RPE1"}
+    for sample in info["control_samples"]:
+        mapping = sample["gene_symbol_mapping"]
+        assert mapping["input_columns"] == 16 and mapping["unique_symbols"] == 15
+        assert mapping["merged_columns"] == 1 and mapping["vocabulary_overlap_symbols"] == 15
+        assert mapping["duplicate_groups"][0]["source_gene_ids"] == data["genes"][-2:].tolist()
+    assert len(load_prepared(data_dir)["genes"]) == 16
+
+
+def test_duplicate_symbols_match_explicitly_summed_encoder_input(tmp_path):
+    torch.set_num_threads(1)
+    _, cfg = tiny_checkpoint(tmp_path, ["A", "B", "C"])
+    cfg["duplicate_symbol_policy"] = "sum_counts"
+    model = ScGPTEncoder(cfg, "cpu")
+    counts = np.array([[1, 3, 4, 8], [0, 2, 5, 1]], dtype=np.int32)
+    actual = model.encode(counts, ["A", "B", "A", "C"])
+    reference = ScGPTEncoder(cfg, "cpu").encode(np.array([[5, 3, 8], [5, 2, 1]]), ["A", "B", "C"])
+    np.testing.assert_array_equal(actual, reference)
+    assert model.last_input_audit["duplicate_groups"] == [{"symbol": "A", "source_columns": [0, 2]}]
+    cfg["duplicate_symbol_policy"] = "error"
+    with pytest.raises(ValueError, match="Duplicate"):
+        ScGPTEncoder(cfg, "cpu").encode(counts, ["A", "B", "A", "C"])
 
 
 def test_published_audit_rejects_other_datasets(tmp_path):

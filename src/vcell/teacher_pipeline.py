@@ -108,6 +108,13 @@ def export_native_teacher(cfg):
                 prediction[row] = perturbed - data["baseline"][row]
         else:
             embedding = backend.encode(counts, symbols).mean(0)
+            if family == "scgpt":
+                mapping = backend.last_input_audit
+                for group in mapping["duplicate_groups"]:
+                    group["source_gene_ids"] = [genes[i] for i in group["source_columns"]]
+                sample["gene_symbol_mapping"] = mapping
+                print(f"scgpt gene_mapping input={mapping['input_columns']} unique={mapping['unique_symbols']} "
+                      f"merged_columns={mapping['merged_columns']} overlap={mapping['vocabulary_overlap_symbols']}", flush=True)
             if features is None:
                 features = np.full((len(data["meta"]), len(embedding)), np.nan, dtype=np.float32)
             features[rows] = embedding

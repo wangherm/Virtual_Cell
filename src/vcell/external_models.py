@@ -64,6 +64,9 @@ class ScGPTEncoder:
         if not 2 <= self.max_genes <= args["max_seq_len"]:
             raise ValueError("max_input_genes must be between 2 and the pretrained max_seq_len")
         self.n_bins = int(args["n_bins"])
+        self.duplicate_symbol_policy = cfg.get("duplicate_symbol_policy", "error")
+        if self.duplicate_symbol_policy not in {"error", "sum_counts"}:
+            raise ValueError("duplicate_symbol_policy must be error or sum_counts")
         self.rng = np.random.default_rng(int(cfg.get("seed", 0)))
         self.model = FrozenScGPT(self.vocab, args)
         raw = torch.load(cfg["checkpoint"], map_location="cpu", weights_only=True)
@@ -80,10 +83,17 @@ class ScGPTEncoder:
     @torch.no_grad()
     def encode(self, counts, symbols):
         from .scgpt_encoder import bin_values
-        counts = np.asarray(counts, dtype=np.float32)
+        counts = np.asarray(counts, dtype=np.float64)
         if counts.ndim != 2 or counts.shape[1] != len(symbols) or not np.isfinite(counts).all() or (counts < 0).any() or (counts.sum(1) <= 0).any():
             raise ValueError("Expected finite nonnegative control counts with positive libraries")
+        if self.duplicate_symbol_policy == "sum_counts":
+            from .gene_mapping import collapse_symbol_counts
+            counts, symbols, self.last_input_audit = collapse_symbol_counts(counts, symbols)
+        else:
+            self.last_input_audit = {"policy": "error_on_duplicate_symbols", "input_columns": len(symbols),
+                                     "unique_symbols": len(symbols), "merged_columns": 0, "duplicate_groups": []}
         src, _ = select_symbols(symbols, self.vocab)
+        self.last_input_audit["vocabulary_overlap_symbols"] = len(src)
         ids = np.array([self.vocab[symbols[i]] for i in src])
         values = np.log1p(counts * (10000. / counts.sum(1))[:, None])
         output = []

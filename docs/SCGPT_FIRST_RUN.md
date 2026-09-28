@@ -115,6 +115,19 @@ deliberately unused. This removes the need for old torchtext, FlashAttention,
 scvi-tools and orbax installations. See `THIRD_PARTY_NOTICES.md` for attribution.
 
 For each dataset/batch, sample eight actual control cells without replacement.
+The AutoDL launcher explicitly uses `duplicate_symbol_policy: sum_counts`: sum
+raw count columns with exactly the same gene symbol before normalization. This
+preserves each cell's full library total. It does not rename symbols with suffixes,
+discard all but the first match, or assume different Ensembl IDs are equivalent.
+It is an explicit aggregation for the encoder's one-token-per-symbol vocabulary;
+source-locus distinctions are lost in the encoder input. Original h5ad files,
+prepared gene IDs and numerical prediction targets stay unchanged.
+
+`scgpt gene_mapping ...` logs input/unique/merged/overlapping gene counts. Each
+control group's `gene_symbol_mapping` in `features.json` records every duplicate
+symbol, source column index and source gene ID. Manual adapters still default to
+rejecting duplicates unless the sum policy is explicitly configured.
+
 Normalize each cell using its full measured count library and log1p, quantile-bin
 positive expression into 50 nonzero bins (zero is bin 0), then filter to the
 scGPT vocabulary. Ties use the upstream random spreading rule with an explicit
@@ -129,13 +142,27 @@ The measured gene panel is only about 8–10k genes, so input coverage differs f
 the pretraining corpus. Whether these representations improve predictions is an
 experimental question.
 
+If an earlier version failed with `Duplicate gene symbols`, update and use a new
+run name because the encoder input policy/code fingerprint changed:
+
+```bash
+git pull --ff-only
+bash scripts/run_scgpt_autodl.sh --name scgpt_02
+```
+
+The existing verified model files are reused. Do not use `--resume` on a run made
+with the old input policy. Outputs from this example are under
+`teachers/scgpt_02` and `runs/qwen_scgpt_02`.
+
 Local checks load the real checkpoint and produce finite 512-dimensional control
 embeddings on CPU. Synthetic tests cover fused-QKV loading, missing-weight and
 metadata rejection, deterministic binning, and raw-control extraction through
 head training and cache validation. A separate integration check used the actual
 scGPT and Qwen weights, synthetic control counts, a two-epoch response head, and
 one epoch each of supervised and distilled Qwen (four training/validation groups).
-Both arms completed on CPU; the 45-test local suite passed. These checks do not
+Both arms completed on CPU; the local test suite passed. The duplicate-symbol
+fix also passed 18 targeted tests and a real-checkpoint comparison: encoder
+outputs matched explicitly pre-summed counts exactly. These checks do not
 measure biological accuracy or replace the server CUDA run.
 
 ## Provenance and the other two teachers

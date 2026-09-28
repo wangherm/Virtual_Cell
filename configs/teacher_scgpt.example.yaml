@@ -10,6 +10,7 @@ max_control_cells: 8
 gene_symbol_key: gene_name
 model:
   implementation: vcell_frozen_scgpt_v1
+  duplicate_symbol_policy: sum_counts  # Encoder input only; raw files/targets stay unchanged.
   checkpoint: /root/autodl-tmp/vcell-work/models/scGPT-human/best_model.pt
   checkpoint_sha256: 6cb5d451ab5c4b33eb673adbe4fddc61d2389df1b89b7651a9fe2e557572b922
   args: /root/autodl-tmp/vcell-work/models/scGPT-human/args.json
