@@ -1,0 +1,11 @@
+# Reuse once for scgpt_features.npz and once for scfoundation_features.npz.
+data_dir: /root/autodl-tmp/vcell-work/prepared/real_min10_01
+features: /root/autodl-tmp/vcell-work/teachers/scgpt_features.npz
+output_dir: /root/autodl-tmp/vcell-work/teachers/scgpt
+device: cuda
+seed: 0
+hidden: 128
+epochs: 20
+patience: 5
+batch_size: 64
+learning_rate: 0.001

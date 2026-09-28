@@ -1,0 +1,18 @@
+# A template, not a claim that public single-holdout weights satisfy our split.
+family: state
+data_dir: /root/autodl-tmp/vcell-work/prepared/real_min10_01
+output: /root/autodl-tmp/vcell-work/teachers/state/predictions.npz
+provenance: /root/autodl-tmp/vcell-work/configs/state_provenance.json
+device: cuda
+seed: 0
+max_control_cells: 64
+gene_symbol_key: null
+model:
+  source_dir: /root/autodl-tmp/vcell-work/vendor/state
+  # Audited current API; checkpoint compatibility still needs real-weight testing.
+  source_revision: 9bbfe78a434a55205e4de834e1ea99f85f7a3add
+  checkpoint: /root/autodl-tmp/vcell-work/models/state/best.ckpt
+  checkpoint_sha256: REPLACE_WITH_VERIFIED_SHA256
+  genes: /root/autodl-tmp/vcell-work/models/state/genes.csv
+  perturbation_map: /root/autodl-tmp/vcell-work/models/state/pert_onehot_map.pt
+  expression_space: REQUIRES_PREPROCESSING_AUDIT

@@ -1,0 +1,28 @@
+# Actual pretrained Qwen; a bounded supervised plumbing check, NOT distillation.
+data_dir: /root/autodl-tmp/vcell-work/prepared/real_min10_01
+output_dir: /root/autodl-tmp/vcell-work/runs/qwen_smoke_01
+device: cuda
+seed: 0
+num_threads: 8
+arms: [supervised]
+teachers: {}
+teacher_mix: equal
+model:
+  model_id: Qwen/Qwen3-0.6B-Base
+  revision: da87bfb608c14b7cf20ba1ce41287e8de496c0cd
+  dtype: bfloat16
+  control_tokens: 8
+  lora_rank: 8
+  lora_alpha: 16
+  gradient_checkpointing: true
+  local_files_only: false
+epochs: 2
+patience: 2
+batch_size: 4
+gradient_accumulation: 4
+learning_rate: 0.0002
+weight_decay: 0.01
+kd_weight: 0.5
+max_train_rows: 128
+max_val_rows: 64
+log_every: 1

@@ -8,12 +8,43 @@ under perturbation across cellular contexts. Clone it onto a Linux server, insta
 the Python package, and run experiments from the terminal. No Colab, notebook,
 Google Drive, or external model API is required.
 
-Four reference teachers and four students compare supervised learning,
-distillation, mutual learning and contrastive learning. The default teachers are
-trained from scratch; this repository does not ship pretrained foundation-model
-weights or generate single-cell distributions.
+Two workflows are available: the original reference-model experiments and a
+pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation
+teacher caches. Biological weights are downloaded separately. This repository
+predicts mean responses, not single-cell distributions.
+
+## New: pretrained Qwen server smoke test
+
+On the existing AutoDL server, reuse the prepared real-data pilot:
+
+```bash
+cd /root/autodl-tmp/virtual_cell
+git pull --ff-only
+bash scripts/run_qwen_autodl.sh
+```
+
+The script preserves the installed CUDA PyTorch, installs the optional Qwen
+dependencies, and downloads pinned `Qwen/Qwen3-0.6B-Base` weights into the data
+disk. It trains on 128 prepared training groups for two epochs and validates on
+64 groups. **This first check is supervised Qwen, not three-teacher distillation.**
+No test scores are revealed. Watch `vcell-work/logs/qwen_smoke_01.log`; successful
+runs print `QWEN RUN COMPLETE` and write `runs/qwen_smoke_01/summary.csv`.
+
+Run inside `screen` for SSH disconnection protection. Resume an unchanged run
+with `bash scripts/run_qwen_autodl.sh --resume`. Use a fresh output directory for
+changed code/configuration. See **[the foundation-model guide](docs/FOUNDATION.md)**
+for checkpoint reload, larger pilots and the three-teacher preparation pipeline.
+
+The teacher adapters are native State prediction and frozen scGPT/scFoundation
+control encoders with a trained conditional response head. Their real-weight
+compatibility and checkpoint training provenance must be verified on the server;
+example teacher configurations deliberately fail until paths, hashes and audits
+are supplied. Missing teachers are never replaced with random networks.
 
 ## Quick start on a server
+
+The following is the original four-reference-teacher workflow, trained from
+scratch. It remains available as a baseline.
 
 Requires Git, Bash, Python **3.10+** with venv/pip, and enough disk space for PyTorch
 and experiment outputs. Python 3.12 is used in CI. The synthetic check works on CPU

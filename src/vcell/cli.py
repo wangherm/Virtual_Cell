@@ -40,6 +40,19 @@ def main(argv=None):
     p.add_argument("--article", type=int, default=20029387)
     p.add_argument("--file-id", type=int, required=True)
     p.add_argument("--output", default="data/raw")
+    p = sub.add_parser("qwen-run", help="Pretrained Qwen numerical regression and audited teacher distillation")
+    p.add_argument("--config", required=True)
+    p.add_argument("--data")
+    p.add_argument("--output")
+    p.add_argument("--resume", action="store_true")
+    p = sub.add_parser("qwen-predict", help="Reload a Qwen adapter and predict prepared control queries")
+    for arg in ("checkpoint", "data", "output"):
+        p.add_argument("--" + arg, required=True)
+    p.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
+    p.add_argument("--batch-size", type=int, default=16)
+    for command in ("teacher-export", "teacher-fit-head"):
+        p = sub.add_parser(command, help="Native pretrained teacher pipeline; see docs/FOUNDATION.md")
+        p.add_argument("--config", required=True)
     args = parser.parse_args(argv)
     if args.command == "inspect":
         from .data import inspect_h5ad
@@ -88,6 +101,25 @@ def main(argv=None):
     elif args.command == "download":
         from .download import download_figshare
         download_figshare(args.file_id, args.output, args.article)
+    elif args.command == "qwen-run":
+        from .qwen import run_qwen
+        cfg = read_config(args.config)
+        for key in ("data", "output"):
+            value = getattr(args, key)
+            if value:
+                cfg[key + "_dir"] = value
+            cfg[key + "_dir"] = str(Path(cfg[key + "_dir"]).resolve())
+        cfg["teachers"] = {n: str(Path(p).resolve()) for n, p in cfg.get("teachers", {}).items()}
+        print(run_qwen(cfg, resume=args.resume))
+    elif args.command == "qwen-predict":
+        from .qwen import predict_checkpoint
+        predict_checkpoint(args.checkpoint, args.data, args.output, args.device, args.batch_size)
+    elif args.command == "teacher-export":
+        from .teacher_pipeline import export_native_teacher
+        print(export_native_teacher(read_config(args.config)))
+    elif args.command == "teacher-fit-head":
+        from .teacher_pipeline import fit_feature_teacher
+        print(fit_feature_teacher(read_config(args.config)))
 
 
 if __name__ == "__main__":

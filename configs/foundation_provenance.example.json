@@ -1,0 +1,12 @@
+{
+  "teacher_name": "REPLACE_WITH_CHECKPOINT_AND_ADAPTATION_NAME",
+  "teacher_family": "scgpt",
+  "model_revision": "REPLACE_WITH_IMMUTABLE_WEIGHT_REVISION",
+  "training_contexts": [],
+  "excluded_contexts": [],
+  "source": "REPLACE_WITH_OFFICIAL_WEIGHT_URL",
+  "license": "REPLACE_WITH_MODEL_WEIGHT_LICENSE",
+  "audit_notes": "Incomplete template. Audit perturbation-label exposure in pretraining and adaptation; do not infer exclusions from an empty list.",
+  "declared_no_holdout_perturbations": false,
+  "prediction_space": "prepared_log1p_delta"
+}
