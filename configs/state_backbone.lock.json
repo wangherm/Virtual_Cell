@@ -1,0 +1,30 @@
+{
+  "model_id": "arcinstitute/SE-100M",
+  "revision": "bc72702320639217128df42673e94a9658f67d24",
+  "files": {
+    "model.safetensors": {
+      "size": 869154536,
+      "sha256": "7ee823583ad10c6a12befba6df12dfcd61ac0972deab57be3b4db24a0045af86"
+    },
+    "protein_embeddings.pt": {
+      "size": 411105891,
+      "sha256": "c32691a6fae68ebfb3e6b63773e1d981dc8c0f7b67c76c3a73fdaae2e2ddb7c8"
+    },
+    "config.yaml": {
+      "size": 4569,
+      "sha256": "1e85a3fbae4c3b2d5b7e669dedce947ac03c787c4a3d75d2e5c4978b129879c1"
+    },
+    "LICENSE.md": {
+      "size": 20850,
+      "sha256": "e66c269d4819aaab34b49ef5220c4ddab6756f21bb5180761a4eb8561f2b7bbd"
+    },
+    "MODEL_LICENSE.md": {
+      "size": 9859,
+      "sha256": "513add0eb2b35e59ce7cd7ff1249b9104794f5fb879ec287a4a9a52e4a96b7a5"
+    },
+    "MODEL_ACCEPTABLE_USE_POLICY.md": {
+      "size": 5130,
+      "sha256": "6eb675a79981d59923be82e3931ef45187b373d7dff04ec7497c897d17d35c51"
+    }
+  }
+}

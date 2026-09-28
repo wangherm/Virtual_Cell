@@ -47,6 +47,9 @@ def main(argv=None):
     p.add_argument("--resume", action="store_true")
     p.add_argument("--model-dir", help="Existing local Qwen snapshot; avoids Hub metadata probes")
     p.add_argument("--offline", action="store_true", help="Forbid model/tokenizer downloads")
+    p = sub.add_parser("421-run", help="Four teachers, two independent full-data Qwen students, one validation selection")
+    p.add_argument("--config", required=True)
+    p.add_argument("--resume", action="store_true")
     p = sub.add_parser("qwen-predict", help="Reload a Qwen adapter and predict prepared control queries")
     for arg in ("checkpoint", "data", "output"):
         p.add_argument("--" + arg, required=True)
@@ -120,6 +123,9 @@ def main(argv=None):
             cfg[key + "_dir"] = str(Path(cfg[key + "_dir"]).resolve())
         cfg["teachers"] = {n: str(Path(p).resolve()) for n, p in cfg.get("teachers", {}).items()}
         print(run_qwen(cfg, resume=args.resume))
+    elif args.command == "421-run":
+        from .training421 import run_421
+        print(run_421(read_config(args.config), resume=args.resume))
     elif args.command == "qwen-predict":
         from .qwen import predict_checkpoint
         predict_checkpoint(args.checkpoint, args.data, args.output, args.device, args.batch_size)

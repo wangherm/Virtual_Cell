@@ -24,7 +24,7 @@ foundation = ["transformers==4.57.3", "peft==0.18.0", "accelerate>=1.10,<2", "sa
 vcell = "vcell.cli:main"
 
 [tool.setuptools]
-license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

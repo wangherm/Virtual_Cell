@@ -27,7 +27,15 @@ from .utils import seed_all, device_from, atomic_torch_save, write_json, file_sh
 DEFAULT_MODEL = "Qwen/Qwen3-0.6B-Base"
 DEFAULT_REVISION = "da87bfb608c14b7cf20ba1ce41287e8de496c0cd"
 TEACHERS = ("state", "scgpt", "scfoundation")
-ARMS = ("supervised", "state", "scgpt", "scfoundation", "all")
+SUPPORTED_TEACHERS = (*TEACHERS, "geneformer")
+ARMS = ("supervised", *SUPPORTED_TEACHERS, "all")
+
+
+def teacher_names(cfg):
+    names = tuple(cfg.get("teacher_families", TEACHERS))
+    if len(names) not in (3, 4) or len(set(names)) != len(names) or set(names) - set(SUPPORTED_TEACHERS):
+        raise ValueError("teacher_families must name three or four distinct supported pretrained families")
+    return names
 
 
 def backbone_identity(spec):
@@ -125,6 +133,7 @@ def selected_rows(indices, limit, seed):
 
 
 def validate_config(cfg):
+    teacher_names(cfg)
     if not cfg["arms"] or len(set(cfg["arms"])) != len(cfg["arms"]) or set(cfg["arms"]) - set(ARMS):
         raise ValueError(f"arms must be a nonempty unique list from {ARMS}")
     for key in ("epochs", "batch_size", "gradient_accumulation", "patience", "num_threads", "log_every"):
@@ -145,8 +154,9 @@ def validate_config(cfg):
 
 
 def teacher_targets(cfg, data, val):
-    needed = set(TEACHERS) if "all" in cfg["arms"] else set(cfg["arms"]) - {"supervised"}
-    unknown = set(cfg.get("teachers", {})) - set(TEACHERS)
+    names = teacher_names(cfg)
+    needed = set(names) if "all" in cfg["arms"] else set(cfg["arms"]) - {"supervised"}
+    unknown = set(cfg.get("teachers", {})) - set(SUPPORTED_TEACHERS)
     if unknown:
         raise ValueError(f"Unknown teacher names: {unknown}")
     missing = needed - set(cfg.get("teachers", {}))
@@ -155,7 +165,8 @@ def teacher_targets(cfg, data, val):
     targets, provenance, hashes = {}, {}, {}
     for name in sorted(needed):
         path = Path(cfg["teachers"][name])
-        targets[name], provenance[name] = load_cache(path, data)
+        targets[name], provenance[name] = load_cache(path, data,
+            allow_unverified=cfg.get("allow_unverified_teachers") is True)
         if provenance[name].get("teacher_family") != name:
             raise ValueError(f"{name}: sidecar teacher_family must match the configured family")
         if provenance[name].get("prediction_space") != "prepared_log1p_delta":
@@ -163,9 +174,9 @@ def teacher_targets(cfg, data, val):
         hashes[name] = [file_sha256(path), file_sha256(path.with_suffix(".json"))]
     weights = None
     if "all" in cfg["arms"]:
-        values = [targets[n] for n in TEACHERS]
+        values = [targets[n] for n in names]
         weights = (fit_mix([a[val] for a in values], data["delta"][val], row_weights(data["meta"].iloc[val]))
-                   if cfg["teacher_mix"] == "validation" else np.ones(3) / 3)
+                   if cfg["teacher_mix"] == "validation" else np.ones(len(names)) / len(names))
         targets["all"] = combine(values, weights)
     return targets, provenance, hashes, None if weights is None else weights.tolist()
 
@@ -264,6 +275,8 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
 
 def run_qwen(cfg, resume=False):
     validate_config(cfg)
+    if cfg.get("allow_unverified_teachers") is True:
+        print("EXPLORATORY TEACHERS: pretraining overlap is unverified; validation is for internal selection only", flush=True)
     device = device_from(cfg["device"])
     if cfg["model"]["dtype"] == "bfloat16" and (device.type != "cuda" or not torch.cuda.is_bf16_supported()):
         raise ValueError("bfloat16 requires a supported CUDA GPU; set model.dtype=float32 for CPU tests")
@@ -288,7 +301,7 @@ def run_qwen(cfg, resume=False):
     dest.mkdir(parents=True, exist_ok=True)
     write_json(dest / "run_manifest.json", {**stamp_data, "run_fingerprint": stamp,
                "train_rows": train.tolist(), "val_rows": val.tolist(), "test_evaluated": False,
-               "teacher_sources": provenance, "teacher_weights_order": list(TEACHERS), "teacher_weights": weights,
+               "teacher_sources": provenance, "teacher_weights_order": list(teacher_names(cfg)), "teacher_weights": weights,
                "normalization_fitted_on": "all prepared training rows",
                "run_kind": "smoke" if cfg.get("max_train_rows") or cfg.get("max_val_rows") else "pilot"})
     predictions = {n: a[val] for n, a in simple_baselines(data).items()}

@@ -1,0 +1,16 @@
+{
+  "model_id": "genbio-ai/scFoundation",
+  "revision": "cb434153a1acfacd215eefc956ea445f7cc39cc3",
+  "vocabulary": {
+    "path": "assets/teacher_vocab/scfoundation_gene_index.tsv",
+    "source": "https://github.com/biomap-research/scFoundation/blob/397631c495eddf9ad6644fc00c6ea8139e651245/OS_scRNA_gene_index.19264.tsv",
+    "sha256": "bb337ea195d94e7b033543abc02a42e7060d6562eba97deb077f7dcecec62661",
+    "size": 228232
+  },
+  "files": {
+    "models.ckpt": {
+      "size": 1432587886,
+      "sha256": "9f40bf324d3d0084c4b288d06f5af4fddd12206e2a3f022551d12e89e33a0ea9"
+    }
+  }
+}

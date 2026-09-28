@@ -25,3 +25,45 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+# scFoundation inference and vocabulary
+
+The scFoundation components in `src/vcell/foundation_encoders.py` and
+`assets/teacher_vocab/scfoundation_gene_index.tsv` are adapted from BioMap's
+[scFoundation repository](https://github.com/biomap-research/scFoundation/tree/397631c495eddf9ad6644fc00c6ea8139e651245).
+Copyright 2023 BioMap (Beijing) Intelligence Technology Limited. Apache-2.0;
+the complete license is in `licenses/APACHE_2_0.txt`.
+Changes: retain only the frozen cell encoder, use standard PyTorch, strictly
+verify encoding weights, merge duplicate symbols before normalization.
+Weights are downloaded separately from the pinned `genbio-ai/scFoundation`
+redistribution. This is not a claim of byte identity with the original author's
+download. Check the original model's terms before redistribution or other use.
+
+# State Embedding
+
+`src/vcell/state_encoder.py` is adapted from
+[Arc Institute State](https://github.com/ArcInstitute/state/tree/9bbfe78a434a55205e4de834e1ea99f85f7a3add).
+Attribution: Arc Institute and the State authors. This file is licensed under
+**CC BY-NC-SA 4.0**, rather than the project's MIT license. The complete license
+is `licenses/STATE_CODE_LICENSE.txt`. Changes are identified in its module header.
+
+State SE-100M weights are downloaded separately from `arcinstitute/SE-100M`.
+They are governed by the **Arc Research Institute State Model Non-Commercial
+License** and acceptable-use policy, included in `licenses/`. Its definition of
+derivative work expressly includes distilled models. Using Qwen as the student
+does not remove upstream model restrictions. Final 421 exports include these
+terms and the following citation:
+
+Adduri, A. et al. (2025). *Predicting cellular responses to perturbation across
+diverse contexts with State.* https://doi.org/10.1101/2025.06.26.661135
+
+# Geneformer
+
+Geneformer V1-10M weights, gene medians, Ensembl mapping and token dictionary are
+downloaded separately from the pinned author repository
+[ctheodoris/Geneformer](https://huggingface.co/ctheodoris/Geneformer).
+Apache-2.0. The V1 rank-value preprocessing follows the author's tokenizer;
+this adapter uses the mean of final-layer gene representations and a custom
+VCell response head. It is not the official in-silico perturbation algorithm.
+Theodoris, C. V. et al. (2023). *Transfer learning enables predictions in network
+biology*. Nature. https://doi.org/10.1038/s41586-023-06139-9

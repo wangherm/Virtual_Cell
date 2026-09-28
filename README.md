@@ -9,11 +9,26 @@ the Python package, and run experiments from the terminal. No Colab, notebook,
 Google Drive, or external model API is required.
 
 Two workflows are available: the original reference-model experiments and a
-pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation
+pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation/Geneformer
 teacher caches. Biological weights are downloaded separately. This repository
 predicts mean responses, not single-cell distributions.
 
-## New: pretrained Qwen server smoke test
+## Four teachers → two students → one selected model
+
+The [four-teacher AutoDL guide](docs/FOUR_TEACHER_RUN.md) runs actual frozen
+scGPT, State SE-100M, scFoundation and Geneformer V1-10M encoders with separately
+trained response heads, then two independent Qwen students on all prepared
+training rows. It selects one checkpoint using validation only. This is an
+**exploratory experiment with unverified pretraining overlap**. State uses its
+Embedding model, not native State Transition predictions. See
+[third-party model and code terms](THIRD_PARTY_NOTICES.md), including State's
+non-commercial restrictions on distilled derivatives.
+
+```bash
+bash scripts/run_421_autodl.sh --name four_teacher_01
+```
+
+## Pretrained Qwen server smoke test
 
 On the existing AutoDL server, reuse the prepared real-data pilot:
 

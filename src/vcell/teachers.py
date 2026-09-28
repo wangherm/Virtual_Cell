@@ -10,10 +10,14 @@ REQUIRED_PROVENANCE = {"teacher_name", "model_revision", "training_contexts", "e
                        "source", "license", "audit_notes", "declared_no_holdout_perturbations"}
 
 
-def check_provenance(provenance, data):
+def check_provenance(provenance, data, *, allow_unverified=False):
     missing = REQUIRED_PROVENANCE - set(provenance)
     if missing:
         raise ValueError(f"Missing teacher provenance: {sorted(missing)}")
+    if allow_unverified and provenance.get("benchmark_status") == "exploratory_pretraining_overlap_unverified":
+        if provenance["declared_no_holdout_perturbations"] is not False or not provenance["audit_notes"]:
+            raise ValueError("Exploratory provenance must explicitly report unverified exclusion")
+        return
     held = set(data["meta"].loc[data["meta"].split != "train", "context"])
     if set(provenance["training_contexts"]) & held:
         raise ValueError("Teacher reports training on held-out context perturbations.")
@@ -24,7 +28,7 @@ def check_provenance(provenance, data):
     # Declaration is auditable metadata, not automated proof of pretraining contents.
 
 
-def load_cache(path, data):
+def load_cache(path, data, *, allow_unverified=False):
     path = Path(path)
     with np.load(path, allow_pickle=False) as f:
         required = {"delta", "row_ids", "genes", "data_fingerprint"}
@@ -40,7 +44,7 @@ def load_cache(path, data):
     if pred.shape != data["delta"].shape or not np.isfinite(pred).all():
         raise ValueError("Invalid teacher prediction shape or values.")
     provenance = json.loads(path.with_suffix(".json").read_text())
-    check_provenance(provenance, data)
+    check_provenance(provenance, data, allow_unverified=allow_unverified)
     return pred, provenance
 
 

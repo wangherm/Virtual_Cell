@@ -1,5 +1,10 @@
 MIT License
 
+Exception: third-party adaptations and assets retain their own licenses.
+In particular src/vcell/state_encoder.py is CC BY-NC-SA 4.0. See
+THIRD_PARTY_NOTICES.md and licenses/. Downloaded model weights and derived
+model artifacts are not licensed by this project's MIT license.
+
 Copyright (c) 2026 VCell Dual contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

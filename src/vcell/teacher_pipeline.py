@@ -61,7 +61,7 @@ def control_groups(data, limit, seed, symbol_key="gene_name"):
             a.file.close()
 
 
-def write_cache(output, prediction, data, provenance):
+def write_cache(output, prediction, data, provenance, *, allow_unverified=False):
     output = Path(output)
     if output.suffix != ".npz":
         raise ValueError("Teacher cache output must end in .npz")
@@ -69,18 +69,18 @@ def write_cache(output, prediction, data, provenance):
         raise FileExistsError(output)
     if prediction.shape != data["delta"].shape or not np.isfinite(prediction).all():
         raise ValueError("Incomplete or nonfinite teacher predictions")
-    check_provenance(provenance, data)
+    check_provenance(provenance, data, allow_unverified=allow_unverified)
     output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output, delta=prediction.astype(np.float32), genes=data["genes"],
                         row_ids=data["meta"].row_id.to_numpy(dtype="U"), data_fingerprint=data["audit"]["fingerprint"])
     write_json(output.with_suffix(".json"), provenance)
-    load_cache(output, data)
+    load_cache(output, data, allow_unverified=allow_unverified)
 
 
 def export_native_teacher(cfg):
     data = load_prepared(cfg["data_dir"])
     family = cfg["family"]
-    if family not in {"state", "scgpt", "scfoundation"}:
+    if family not in {"state", "scgpt", "scfoundation", "geneformer"}:
         raise ValueError("Unknown teacher family")
     if family == "state" and float(data["audit"]["target_sum"]) != 10000:
         raise ValueError("State adapter requires prepared target_sum=10000")
@@ -90,30 +90,36 @@ def export_native_teacher(cfg):
     provenance = json.loads(Path(cfg["provenance"]).read_text())
     if provenance.get("teacher_family") != family:
         raise ValueError("Provenance teacher_family differs from adapter")
-    check_provenance(provenance, data)
+    allow_unverified = cfg.get("allow_unverified_teachers") is True
+    check_provenance(provenance, data, allow_unverified=allow_unverified)
     if provenance.get("prediction_space") != "prepared_log1p_delta":
         raise ValueError("Audit and declare prepared_log1p_delta prediction space")
     seed_all(int(cfg["seed"]))
     device = device_from(cfg["device"])
-    cls = {"state": StatePredictor, "scgpt": ScGPTEncoder, "scfoundation": ScFoundationEncoder}[family]
+    from .foundation_encoders import FoundationEncoder, GeneformerEncoder
+    from .state_encoder import StateEncoder
+    native_state = family == "state" and cfg["model"].get("implementation") != "vcell_state_se100m_v1"
+    cls = {"state": StatePredictor if native_state else StateEncoder, "scgpt": ScGPTEncoder,
+           "scfoundation": FoundationEncoder if cfg["model"].get("implementation") == "vcell_scfoundation_v1" else ScFoundationEncoder,
+           "geneformer": GeneformerEncoder}[family]
     backend = cls(cfg["model"], device)
-    prediction = np.full_like(data["delta"], np.nan) if family == "state" else None
+    prediction = np.full_like(data["delta"], np.nan) if native_state else None
     features, samples = None, []
     for number, (rows, counts, genes, symbols, sample) in enumerate(control_groups(
             data, int(cfg["max_control_cells"]), int(cfg["seed"]), cfg.get("gene_symbol_key", "gene_name")), 1):
         samples.append(sample)
-        if family == "state":
+        if native_state:
             for row in rows:
                 perturbed = backend.predict(counts, genes, data["meta"].iloc[row].perturbation, data["genes"])
                 prediction[row] = perturbed - data["baseline"][row]
         else:
-            embedding = backend.encode(counts, symbols).mean(0)
-            if family == "scgpt":
+            embedding = backend.encode(counts, genes if family == "geneformer" else symbols).mean(0)
+            if hasattr(backend, "last_input_audit"):
                 mapping = backend.last_input_audit
                 for group in mapping["duplicate_groups"]:
                     group["source_gene_ids"] = [genes[i] for i in group["source_columns"]]
                 sample["gene_symbol_mapping"] = mapping
-                print(f"scgpt gene_mapping input={mapping['input_columns']} unique={mapping['unique_symbols']} "
+                print(f"{family} gene_mapping input={mapping['input_columns']} unique={mapping['unique_symbols']} "
                       f"merged_columns={mapping['merged_columns']} overlap={mapping['vocabulary_overlap_symbols']}", flush=True)
             if features is None:
                 features = np.full((len(data["meta"]), len(embedding)), np.nan, dtype=np.float32)
@@ -122,8 +128,9 @@ def export_native_teacher(cfg):
     source = {"adapter_config": cfg, "control_samples": samples,
               "checkpoint_sha256": file_sha256(cfg["model"]["checkpoint"]),
               "input_kind": "genuine single control cells sampled without replacement"}
-    if family == "state":
-        write_cache(output, prediction, data, {**provenance, **source, "adaptation": "native State Transition inference"})
+    if native_state:
+        write_cache(output, prediction, data, {**provenance, **source, "adaptation": "native State Transition inference"},
+                    allow_unverified=allow_unverified)
     else:
         if features is None or not np.isfinite(features).all():
             raise ValueError("Missing/nonfinite control features")
@@ -156,10 +163,11 @@ def fit_feature_teacher(cfg):
         raise ValueError("Frozen feature file checksum mismatch")
     if provenance.get("artifact_kind") != "frozen_control_features_NOT_predictions":
         raise ValueError("Expected native frozen control features")
-    if provenance.get("teacher_family") not in {"scgpt", "scfoundation"}:
-        raise ValueError("Feature-head adapter is for scGPT/scFoundation only")
+    if provenance.get("teacher_family") not in {"scgpt", "scfoundation", "state", "geneformer"}:
+        raise ValueError("Unknown frozen-feature teacher family")
     provenance["training_contexts"] = sorted(set(provenance["training_contexts"]) | set(data["meta"].loc[data["meta"].split == "train", "context"]))
-    check_provenance(provenance, data)
+    allow_unverified = cfg.get("allow_unverified_teachers") is True
+    check_provenance(provenance, data, allow_unverified=allow_unverified)
     with np.load(features_path, allow_pickle=False) as f:
         if str(f["data_fingerprint"].item()) != data["audit"]["fingerprint"] or not np.array_equal(f["row_ids"], data["meta"].row_id.to_numpy(dtype="U")):
             raise ValueError("Features/data alignment mismatch")
@@ -224,6 +232,7 @@ def fit_feature_teacher(cfg):
                       prediction_space="prepared_log1p_delta", feature_file_sha256=file_sha256(features_path),
                       head_sha256=file_sha256(out / "head.pt"), head_config=cfg,
                       selection_contexts=sorted(data["meta"].loc[data["meta"].split == "val", "context"].unique().tolist()))
-    write_cache(out / "predictions.npz", infer(np.arange(len(features))), data, provenance)
+    write_cache(out / "predictions.npz", infer(np.arange(len(features))), data, provenance,
+                allow_unverified=allow_unverified)
     write_json(out / "validation.json", {"best_epoch": saved["epoch"], "mse_delta": best, "test_evaluated": False})
     return out / "predictions.npz"
