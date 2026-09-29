@@ -28,6 +28,20 @@ non-commercial restrictions on distilled derivatives.
 bash scripts/run_421_autodl.sh --name four_teacher_01
 ```
 
+## Third student trained on challenge data
+
+The [student C guide](docs/STUDENT_C_VCC.md) adds an independent, supervised
+Qwen student trained on the official 2025 Virtual Cell Challenge training data.
+It streams the large source file, preserves the existing distilled A/B models,
+and compares all three on identical validation rows and genes. The 2026 challenge
+does not provide challenge-specific perturbation training labels. This is an
+internal data-source comparison, not an official challenge submission or a
+controlled distillation ablation.
+
+```bash
+bash scripts/run_student_c_autodl.sh --name vcc2025_c_01
+```
+
 ## Pretrained Qwen server smoke test
 
 On the existing AutoDL server, reuse the prepared real-data pilot:
@@ -63,11 +77,10 @@ environment and local Qwen files. See **[the scGPT run guide](docs/SCGPT_FIRST_R
 for progress, outputs, larger experiments and the published-source audit limits.
 
 There is one Qwen student architecture; each comparison arm trains a separate
-copy from the same initialization. The three-teacher joint arm is still gated:
-State needs a compatible checkpoint excluding both held-out contexts, and
-scFoundation still needs real-weight verification. Missing teachers are never
-replaced with random networks. scGPT/scFoundation use custom response heads;
-State uses native State Transition predictions.
+copy from the base model. The strict three-teacher workflow requires audited
+holdout exclusions. The exploratory four-teacher workflow above explicitly
+allows unverified pretraining overlap and uses State Embedding with a trained
+response head. Missing teachers are never replaced with random networks.
 
 ## Quick start on a server
 

@@ -1,0 +1,18 @@
+{
+  "dataset": "Arc Virtual Cell Challenge 2025 official training split",
+  "context": "H1_hESC",
+  "source": "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/virtual-cell-challenge",
+  "url": "https://storage.googleapis.com/arc-institute-virtual-cell-atlas/virtual-cell-challenge/2025/train/adata_Training.h5ad?generation=1765904883947296",
+  "generation": "1765904883947296",
+  "size": 15482497461,
+  "crc32c": "/Z0row==",
+  "n_obs": 221273,
+  "n_vars": 18080,
+  "gene_key": "gene_id",
+  "perturbation_key": "target_gene",
+  "batch_key": "batch",
+  "control": "non-targeting",
+  "matrix": "X",
+  "normalization": "mean(log1p(10000 * raw_counts / full_measured_library))",
+  "checked_on": "2026-09-29"
+}
