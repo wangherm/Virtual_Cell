@@ -1,0 +1,20 @@
+{
+  "model_id": "minwoosun/uce-misc",
+  "revision": "bffb91084e4476698984e7e01f6170ce291f4074",
+  "files": {
+    "protein_embeddings/Homo_sapiens.GRCh38.gene_symbol_to_embedding_ESM2.pt": {
+      "size": 410886729,
+      "sha256": "a210e1cc7901513999b2bca3836ba9e2f203cd008be4e9a9d6412a2267de9748"
+    },
+    "species_chrom.csv": {
+      "size": 4097781,
+      "sha256": "a9e801829ffaf05b5d7e6c6ef12404326cf6796ad561ad62ce701884f07969f5"
+    },
+    "species_offsets.pkl": {
+      "size": 139,
+      "sha256": "abda5b2bc4018187e408623b292686a061912f449daceb4c9c9603caf0d62538"
+    }
+  },
+  "upstream": "https://github.com/snap-stanford/UCE/tree/9c416007be15ad6753dc84af4468c1dc10421ab9",
+  "note": "Hugging Face redistribution; upstream-original byte identity not established"
+}

@@ -27,14 +27,14 @@ from .utils import seed_all, device_from, atomic_torch_save, write_json, file_sh
 DEFAULT_MODEL = "Qwen/Qwen3-0.6B-Base"
 DEFAULT_REVISION = "da87bfb608c14b7cf20ba1ce41287e8de496c0cd"
 TEACHERS = ("state", "scgpt", "scfoundation")
-SUPPORTED_TEACHERS = (*TEACHERS, "geneformer")
+SUPPORTED_TEACHERS = (*TEACHERS, "geneformer", "uce")
 ARMS = ("supervised", *SUPPORTED_TEACHERS, "all")
 
 
 def teacher_names(cfg):
     names = tuple(cfg.get("teacher_families", TEACHERS))
-    if len(names) not in (3, 4) or len(set(names)) != len(names) or set(names) - set(SUPPORTED_TEACHERS):
-        raise ValueError("teacher_families must name three or four distinct supported pretrained families")
+    if len(names) not in (3, 4, 5) or len(set(names)) != len(names) or set(names) - set(SUPPORTED_TEACHERS):
+        raise ValueError("teacher_families must name three, four or five distinct supported pretrained families")
     return names
 
 
@@ -54,7 +54,7 @@ def backbone_identity(spec):
 
 
 class QwenResponse(nn.Module):
-    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None):
+    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None, functional_vectors=None):
         super().__init__()
         from transformers import AutoModel, AutoTokenizer
         from peft import LoraConfig, get_peft_model, TaskType
@@ -90,13 +90,24 @@ class QwenResponse(nn.Module):
                                              nn.Linear(h, self.n_tokens * h))
         self.prediction_token = nn.Parameter(torch.randn(1, 1, h) * .02)
         self.output = nn.Sequential(nn.LayerNorm(h), nn.Linear(h, genes))
+        if spec.get("functional"):
+            from .functional import load_function
+            values = load_function(spec["functional"], perturbations) if functional_vectors is None else functional_vectors
+            values = torch.as_tensor(values, dtype=torch.float32)
+            if values.ndim != 2 or len(values) != len(perturbations) or not torch.isfinite(values).all():
+                raise ValueError("Invalid checkpoint functional vectors")
+            self.register_buffer("functional_vectors", values)
+            self.functional_projector = nn.Sequential(nn.Linear(values.shape[1], h), nn.GELU(), nn.LayerNorm(h))
 
     def forward(self, x, p):
         controls = self.input_projector(x.float()).reshape(len(x), self.n_tokens, -1)
+        if hasattr(self, "functional_vectors"):
+            functional = self.functional_projector(self.functional_vectors[p]).unsqueeze(1)
+            controls = torch.cat([controls, functional], dim=1)
         words = self.backbone.get_input_embeddings()(self.prompt_ids[p])
         final = self.prediction_token.expand(len(x), -1, -1)
         inputs = torch.cat([controls.to(words.dtype), words, final.to(words.dtype)], dim=1)
-        mask = torch.cat([torch.ones((len(x), self.n_tokens), device=x.device, dtype=torch.long),
+        mask = torch.cat([torch.ones((len(x), controls.shape[1]), device=x.device, dtype=torch.long),
                           self.prompt_mask[p], torch.ones((len(x), 1), device=x.device, dtype=torch.long)], 1)
         positions = (mask.cumsum(-1) - 1).clamp_min(0)
         hidden = self.backbone(inputs_embeds=inputs, attention_mask=mask,
@@ -144,8 +155,10 @@ def validate_config(cfg):
             raise ValueError(f"Invalid {key}")
     if cfg["learning_rate"] == 0:
         raise ValueError("learning_rate must be positive")
-    if cfg["teacher_mix"] not in {"equal", "validation"}:
-        raise ValueError("teacher_mix must be equal or validation")
+    if cfg["teacher_mix"] not in {"equal", "validation", "reliability"}:
+        raise ValueError("teacher_mix must be equal, validation or reliability")
+    if cfg.get("loss_weighting", "uniform") not in {"uniform", "context_perturbation"}:
+        raise ValueError("Unknown loss_weighting")
     if cfg["model"]["dtype"] not in {"float32", "bfloat16"}:
         raise ValueError("Use float32 or bfloat16; float16 has no scaler in this trainer")
     for key in ("control_tokens", "lora_rank", "lora_alpha"):
@@ -175,10 +188,50 @@ def teacher_targets(cfg, data, val):
     weights = None
     if "all" in cfg["arms"]:
         values = [targets[n] for n in names]
-        weights = (fit_mix([a[val] for a in values], data["delta"][val], row_weights(data["meta"].iloc[val]))
+        if cfg["teacher_mix"] == "reliability":
+            report = load_reliability(cfg, data)
+            if report["teacher_names"] != list(names) or report["teacher_cache_hashes"] != hashes:
+                raise ValueError("Reliability report does not match these teacher caches/order")
+            weights = np.array(report["weights"])
+            if weights.shape != (len(names),) or not np.isfinite(weights).all() or (weights < 0).any() or not np.isclose(weights.sum(), 1):
+                raise ValueError("Invalid reliability mixture weights")
+        else:
+            weights = (fit_mix([a[val] for a in values], data["delta"][val], row_weights(data["meta"].iloc[val]))
                    if cfg["teacher_mix"] == "validation" else np.ones(len(names)) / len(names))
         targets["all"] = combine(values, weights)
     return targets, provenance, hashes, None if weights is None else weights.tolist()
+
+
+def load_reliability(cfg, data):
+    spec = cfg["reliability"]
+    if file_sha256(spec["path"]) != spec["sha256"]:
+        raise ValueError("Reliability report changed")
+    report = json.loads(Path(spec["path"]).read_text())
+    if report["data_fingerprint"] != data["audit"]["fingerprint"] or not set(report["eligible_rows"]).issubset(set(data["splits"]["train"])):
+        raise ValueError("Reliability must be estimated from training rows only")
+    if report["selected_using"] != "training-context cross-fit predictions only" or not 0 <= report["kd_strength"] <= 1:
+        raise ValueError("Invalid reliability selection provenance")
+    return report
+
+
+def training_weights(cfg, data, train_idx):
+    weights = np.ones(len(data["meta"]), dtype=np.float32)
+    if cfg.get("loss_weighting") == "context_perturbation":
+        weights[train_idx] = row_weights(data["meta"].iloc[train_idx]) * len(train_idx)
+    gate = np.ones(len(weights), dtype=np.float32)
+    if cfg.get("kd_mask"):
+        spec = cfg["kd_mask"]
+        if file_sha256(spec["path"]) != spec["sha256"]:
+            raise ValueError("KD row mask changed")
+        with np.load(spec["path"]) as f:
+            if not np.array_equal(f["row_ids"], data["meta"].row_id.to_numpy(dtype="U")) or f["eligible"].shape != gate.shape:
+                raise ValueError("KD row mask/data mismatch")
+            gate = f["eligible"].astype(np.float32)
+        if not np.isin(gate, [0, 1]).all():
+            raise ValueError("KD row mask must be binary")
+    if cfg["teacher_mix"] == "reliability" and "all" in cfg["arms"]:
+        gate *= load_reliability(cfg, data)["kd_strength"]
+    return torch.tensor(weights), torch.tensor(gate)
 
 
 def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
@@ -187,6 +240,7 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
     model = QwenResponse(len(data["genes"]), data["perturbations"], cfg["model"]).to(device)
     norm = normalization(data)
     ts = tensors(data, norm)
+    loss_weights, kd_gate = training_weights(cfg, data, train_idx)
     kd = None if arm == "supervised" else torch.tensor(targets[arm] / norm["scale"])
     parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
@@ -209,6 +263,7 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
               "backbone_identity": backbone_identity(cfg["model"]),
               "genes": data["genes"].tolist(), "perturbations": data["perturbations"].tolist(),
               "prompt_ids": model.prompt_ids.cpu(), "prompt_mask": model.prompt_mask.cpu(),
+              "functional_vectors": model.functional_vectors.cpu() if hasattr(model, "functional_vectors") else None,
               "normalization": {"mean": torch.tensor(norm["mean"]), "std": torch.tensor(norm["std"]), "scale": norm["scale"]},
               "data_fingerprint": data["audit"]["fingerprint"], "run_fingerprint": stamp}
     val_weights = row_weights(data["meta"].iloc[val_idx])
@@ -229,8 +284,10 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
             for j in range(0, len(window), cfg["batch_size"]):
                 ix = window[j:j + cfg["batch_size"]]
                 prediction = model(ts["x"][ix].to(device), ts["p"][ix].to(device))
-                sup = F.mse_loss(prediction, ts["y"][ix].to(device))
-                distill = F.mse_loss(prediction, kd[ix].to(device)) if kd is not None else sup.detach() * 0
+                weight = loss_weights[ix].to(device)
+                sup = ((prediction - ts["y"][ix].to(device)).square().mean(1) * weight).mean()
+                distill = (((prediction - kd[ix].to(device)).square().mean(1) * weight * kd_gate[ix].to(device)).mean()
+                           if kd is not None else sup.detach() * 0)
                 loss = sup + cfg["kd_weight"] * distill
                 if not torch.isfinite(loss):
                     raise FloatingPointError("Nonfinite Qwen loss")
@@ -323,7 +380,7 @@ def load_qwen_checkpoint(path, device="cpu"):
     if backbone_identity(saved["model_spec"]) != saved["backbone_identity"]:
         raise ValueError("Frozen backbone files changed")
     model = QwenResponse(len(saved["genes"]), saved["perturbations"], saved["model_spec"],
-                         saved["prompt_ids"], saved["prompt_mask"]).to(device).eval()
+                         saved["prompt_ids"], saved["prompt_mask"], saved.get("functional_vectors")).to(device).eval()
     model.load_adapter_state(saved["trainable_state"])
     return model, saved
 

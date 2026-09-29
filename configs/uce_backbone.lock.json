@@ -1,0 +1,16 @@
+{
+  "model_id": "minwoosun/uce-650m",
+  "revision": "93757855670af2f38e8e2b2ac31be619003ca83b",
+  "files": {
+    "config.json": {
+      "size": 116,
+      "sha256": "7700b2e421ee800595ffaed0866351113f28ecc49a4fb035dd187a01c3d3af4a"
+    },
+    "pytorch_model.bin": {
+      "size": 5686217102,
+      "sha256": "9ab8911fdefc82fe3522d68f83f0782ec0bfad7535bb132c15a9559f559a49d9"
+    }
+  },
+  "upstream": "https://github.com/snap-stanford/UCE/tree/9c416007be15ad6753dc84af4468c1dc10421ab9",
+  "note": "Hugging Face redistribution; upstream-original byte identity not established"
+}

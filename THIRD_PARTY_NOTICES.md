@@ -67,3 +67,36 @@ this adapter uses the mean of final-layer gene representations and a custom
 VCell response head. It is not the official in-silico perturbation algorithm.
 Theodoris, C. V. et al. (2023). *Transfer learning enables predictions in network
 biology*. Nature. https://doi.org/10.1038/s41586-023-06139-9
+
+# Universal Cell Embedding (UCE)
+
+`src/vcell/uce_model.py` is adapted from the MIT-licensed
+[snap-stanford/UCE](https://github.com/snap-stanford/UCE/tree/9c416007be15ad6753dc84af4468c1dc10421ab9)
+model definition. The complete notice is in `licenses/UCE-MIT.txt`. Changes:
+remove global warning suppression and path mutation; preserve architecture and
+parameter names. The separate human adapter merges duplicate raw-count symbols,
+samples expressed genes, preserves chromosome token ordering and normalizes
+protein tokens before frozen inference. The VCell response head is not a native
+UCE perturbation decoder.
+
+Rosen, Y. et al. (2026). *Universal cell embedding provides a foundation model
+for cell biology*. Nature. https://doi.org/10.1038/s41586-026-10689-z
+
+Weights and auxiliary files are downloaded separately from pinned
+`minwoosun/uce-650m` and `minwoosun/uce-misc` redistributions. Checkpoint hashes
+are verified; original Figshare byte identity is not asserted. The upstream
+[Figshare model deposit](https://figshare.com/articles/dataset/24320806) lists
+CC BY 4.0; the HF card has MIT metadata but CC-BY-NC-ND 4.0 in its body. These
+inconsistent notices are recorded, not resolved or relicensed by this project.
+Do not infer unrestricted model/derivative redistribution from our code license.
+State-derived student terms described above continue to apply.
+
+# Functional annotations
+
+`assets/function/` contains GO Biological Process 2023 and Reactome 2022 gene-set
+snapshots obtained from the [Enrichr service](https://maayanlab.cloud/Enrichr/).
+Exact retrieval URLs, access date and SHA256 hashes are in `sources.json`.
+Attribute the Gene Ontology Consortium, Reactome and Enrichr authors for these
+annotations. They are third-party annotation data, not newly MIT-licensed data
+authored by this project. No user's gene list or expression matrix was submitted
+to the service; the public libraries were downloaded in full.

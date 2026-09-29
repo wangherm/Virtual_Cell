@@ -7,3 +7,5 @@
 *.tsv text eol=lf
 # Preserve upstream legal text verbatim, including its whitespace.
 licenses/** -whitespace
+# Annotation snapshot checksums refer to the original downloaded bytes.
+assets/function/*.gmt -text -whitespace

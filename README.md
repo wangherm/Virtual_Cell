@@ -28,6 +28,19 @@ non-commercial restrictions on distilled derivatives.
 bash scripts/run_421_autodl.sh --name four_teacher_01
 ```
 
+## Fifth teacher and algorithm ablations
+
+The [round-5 guide](docs/ROUND5.md) adds UCE-33, a low-rank Ridge baseline,
+training-context cross-fitted teacher reliability, GO/Reactome relation features,
+and balanced regression losses. Seven Qwen ablations use the same original full
+validation panel. Existing A/B/C outputs are preserved; final test labels stay
+sealed. UCE is a frozen cell encoder with a custom response head, not a native
+perturbation decoder. The default is one seed; this is an exploratory comparison.
+
+```bash
+bash scripts/run_round5_autodl.sh --name round5_01
+```
+
 ## Third student trained on challenge data
 
 The [student C guide](docs/STUDENT_C_VCC.md) adds an independent, supervised
