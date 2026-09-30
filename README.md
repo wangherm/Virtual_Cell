@@ -245,6 +245,7 @@ source code. The default pipeline uses one device, not distributed training.
 
 ## Documentation
 
+- [Round 7: parallel students, H1 expansion and native mechanism reviewers](docs/ROUND7.md)
 - [Server installation and operations](docs/SERVER.md)
 - [Data preparation and inference](docs/DATA.md)
 - [Models, losses, splits and experiment interpretation](docs/EXPERIMENTS.md)

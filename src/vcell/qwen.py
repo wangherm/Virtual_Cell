@@ -54,7 +54,7 @@ def backbone_identity(spec):
 
 
 class QwenResponse(nn.Module):
-    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None, functional_vectors=None, reference_values=None):
+    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None, functional_vectors=None, reference_values=None, response_basis=None):
         super().__init__()
         from transformers import AutoModel, AutoTokenizer
         from peft import LoraConfig, get_peft_model, TaskType
@@ -90,6 +90,16 @@ class QwenResponse(nn.Module):
                                              nn.Linear(h, self.n_tokens * h))
         self.prediction_token = nn.Parameter(torch.randn(1, 1, h) * .02)
         self.output = nn.Sequential(nn.LayerNorm(h), nn.Linear(h, genes))
+        if spec.get("response_rank"):
+            if response_basis is None:
+                raise ValueError("Low-rank output requires a training-only response basis")
+            basis = torch.as_tensor(response_basis, dtype=torch.float32)
+            if basis.ndim != 2 or basis.shape[1] != genes or not torch.isfinite(basis).all():
+                raise ValueError("Invalid response basis")
+            self.register_buffer("response_basis", basis)
+            # Preserve the RNG state and shared initialization of the full-head model.
+            with torch.random.fork_rng(devices=[]):
+                self.output = nn.Sequential(nn.LayerNorm(h), nn.Linear(h, len(basis)))
         if spec.get("functional"):
             from .functional import load_function
             values = load_function(spec["functional"], perturbations) if functional_vectors is None else functional_vectors
@@ -125,6 +135,8 @@ class QwenResponse(nn.Module):
         hidden = self.backbone(inputs_embeds=inputs, attention_mask=mask,
                                position_ids=positions, use_cache=False).last_hidden_state[:, -1]
         result = self.output(hidden.float())
+        if hasattr(self, "response_basis"):
+            result = result @ self.response_basis
         if hasattr(self, "reference_values"):
             interaction = F.gelu(self.background_context(x.float())) * self.background_target(p)
             result = result + self.reference_values[p] + self.background_output(interaction)
@@ -184,6 +196,14 @@ def validate_config(cfg):
     for key in ("control_tokens", "lora_rank", "lora_alpha"):
         if int(cfg["model"][key]) < 1:
             raise ValueError(f"Invalid model.{key}")
+    if cfg.get("max_steps") is not None:
+        if int(cfg["max_steps"]) < 1 or int(cfg.get("eval_every_steps", 0)) < 1:
+            raise ValueError("max_steps and eval_every_steps must be positive")
+        if cfg["arms"] != ["supervised"]:
+            raise ValueError("Fixed-update mode currently requires supervised training")
+    if cfg["model"].get("response_rank") is not None:
+        if int(cfg["model"]["response_rank"]) < 1 or cfg.get("max_steps") is None:
+            raise ValueError("response_rank requires positive rank and fixed-update mode")
 
 
 def teacher_targets(cfg, data, val):
@@ -259,6 +279,9 @@ def training_weights(cfg, data, train_idx):
 
 
 def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
+    if cfg.get("max_steps") is not None:
+        from .fixed_training import train_fixed_arm
+        return train_fixed_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume)
     device = device_from(cfg["device"])
     seed_all(cfg["seed"])
     norm = normalization(data)
@@ -384,6 +407,16 @@ def run_qwen(cfg, resume=False):
     data = load_prepared(cfg["data_dir"])
     train = selected_rows(data["splits"]["train"], cfg.get("max_train_rows"), cfg["seed"])
     val = selected_rows(data["splits"]["val"], cfg.get("max_val_rows"), cfg["seed"] + 1)
+    if cfg.get("internal_split"):
+        if cfg.get("max_steps") is None or cfg["arms"] != ["supervised"]:
+            raise ValueError("Internal calibration requires fixed-step supervised training")
+        partition = cfg["internal_split"]
+        groups = [np.asarray(partition[k], dtype=int) for k in ("fit", "calibration", "outer")]
+        if any(not len(g) or len(set(g.tolist())) != len(g) or not set(g.tolist()) <= set(train.tolist()) for g in groups):
+            raise ValueError("Internal rows must be unique, nonempty subsets of training")
+        if any(set(groups[i]) & set(groups[j]) for i in range(3) for j in range(i)):
+            raise ValueError("Internal fit/calibration/outer overlap")
+        train, _, val = groups
     # Validate every required cache BEFORE downloading the student backbone.
     targets, provenance, hashes, weights = teacher_targets(cfg, data, val)
     identity = backbone_identity(cfg["model"])
@@ -402,9 +435,15 @@ def run_qwen(cfg, resume=False):
     write_json(dest / "run_manifest.json", {**stamp_data, "run_fingerprint": stamp,
                "train_rows": train.tolist(), "val_rows": val.tolist(), "test_evaluated": False,
                "teacher_sources": provenance, "teacher_weights_order": list(teacher_names(cfg)), "teacher_weights": weights,
-               "normalization_fitted_on": "all prepared training rows",
+               "normalization_fitted_on": "explicit internal fit rows" if cfg.get("internal_split") else "all prepared training rows",
                "run_kind": "smoke" if cfg.get("max_train_rows") or cfg.get("max_val_rows") else "pilot"})
-    predictions = {n: a[val] for n, a in simple_baselines(data).items()}
+    if cfg.get("internal_split"):
+        from .specialization import reference_responses
+        reference, _ = reference_responses(data, train)
+        predictions = {"no_change": np.zeros_like(data["delta"][val]),
+                       "mean_transfer": reference[data["pert_idx"][val]]}
+    else:
+        predictions = {n: a[val] for n, a in simple_baselines(data).items()}
     if cfg["teacher_mix"] != "module":
         predictions.update({"teacher/" + n: a[val] for n, a in targets.items()})
     for arm in cfg["arms"]:
@@ -425,7 +464,7 @@ def load_qwen_checkpoint(path, device="cpu"):
         raise ValueError("Frozen backbone files changed")
     model = QwenResponse(len(saved["genes"]), saved["perturbations"], saved["model_spec"],
                          saved["prompt_ids"], saved["prompt_mask"], saved.get("functional_vectors"),
-                         saved.get("reference_values")).to(device).eval()
+                         saved.get("reference_values"), saved.get("response_basis")).to(device).eval()
     model.load_adapter_state(saved["trainable_state"])
     return model, saved
 
