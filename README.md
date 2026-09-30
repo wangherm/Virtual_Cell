@@ -28,6 +28,25 @@ non-commercial restrictions on distilled derivatives.
 bash scripts/run_421_autodl.sh --name four_teacher_01
 ```
 
+## Background modeling and teacher specialization
+
+The [round-6 guide](docs/ROUND6.md) runs six matched Qwen ablations: the current
+supervised model, a reference-response plus background-interaction model, equal
+distillation, module-specific distillation, specialty-trained response heads,
+and a gated-equal control. Nested teacher calibration keeps each outer context's
+labels out of its teacher selection. Default: two paired student seeds, cached
+encoders only, no model downloads, no final test evaluation.
+
+```bash
+bash scripts/run_round6_autodl.sh --name round6_01
+```
+
+Add `--challenge-data /root/autodl-tmp/vcell-work/prepared/vcc2025_c_01` to run
+an additional H1 data-expansion comparison on an identical common gene panel
+with the same maximum optimizer-step budget. This does not run a cross-species
+benchmark. Detailed progress, grouped comparisons and a compact review archive
+are written automatically.
+
 ## Fifth teacher and algorithm ablations
 
 The [round-5 guide](docs/ROUND5.md) adds UCE-33, a low-rank Ridge baseline,

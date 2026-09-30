@@ -1,0 +1,18 @@
+{
+  "replogle_k562_essential": {
+    "species": "Homo sapiens",
+    "cell_line": "K562"
+  },
+  "replogle_rpe1": {
+    "species": "Homo sapiens",
+    "cell_line": "RPE1"
+  },
+  "nadig_hepg2": {
+    "species": "Homo sapiens",
+    "cell_line": "HepG2"
+  },
+  "nadig_jurkat": {
+    "species": "Homo sapiens",
+    "cell_line": "Jurkat"
+  }
+}

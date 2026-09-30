@@ -37,7 +37,7 @@ def load_features(path, data):
     return x, audit
 
 
-def fit_head(data, features, fit, query, *, epochs=20, seed=17, device="cpu"):
+def fit_head(data, features, fit, query, *, epochs=20, seed=17, device="cpu", gene_weights=None):
     """Fixed epochs. No validation/test labels influence fitting or stopping."""
     seed_all(seed)
     mean, std = features[fit].mean(0), np.maximum(features[fit].std(0), .01)
@@ -47,6 +47,10 @@ def fit_head(data, features, fit, query, *, epochs=20, seed=17, device="cpu"):
     y = torch.tensor(data["delta"][fit] / scale, device=device)
     w = torch.tensor(row_weights(data["meta"].iloc[fit]) * len(fit), dtype=torch.float32, device=device)
     model = ConditionalHead(features.shape[1], len(data["perturbations"]), len(data["genes"]), 128).to(device)
+    gw = np.ones(len(data["genes"]), dtype=np.float32) if gene_weights is None else np.asarray(gene_weights, dtype=np.float32)
+    if gw.shape != (len(data["genes"]),) or not np.isfinite(gw).all() or (gw <= 0).any():
+        raise ValueError("Invalid teacher gene loss weights")
+    gw = torch.tensor(gw / gw.mean(), device=device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=.001, weight_decay=.01)
     for epoch in range(epochs):
         model.train()
@@ -55,7 +59,7 @@ def fit_head(data, features, fit, query, *, epochs=20, seed=17, device="cpu"):
             selected = order[start:start+64]
             ix = fit[selected]
             prediction = model(x[ix], p[ix])
-            loss = ((prediction - y[selected]).square().mean(1) * w[selected]).mean()
+            loss = (((prediction - y[selected]).square() * gw).mean(1) * w[selected]).mean()
             if not torch.isfinite(loss):
                 raise FloatingPointError("Nonfinite cross-fitted teacher loss")
             optimizer.zero_grad(set_to_none=True)

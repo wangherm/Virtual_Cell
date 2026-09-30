@@ -54,7 +54,7 @@ def backbone_identity(spec):
 
 
 class QwenResponse(nn.Module):
-    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None, functional_vectors=None):
+    def __init__(self, genes, perturbations, spec, prompt_ids=None, prompt_mask=None, functional_vectors=None, reference_values=None):
         super().__init__()
         from transformers import AutoModel, AutoTokenizer
         from peft import LoraConfig, get_peft_model, TaskType
@@ -98,6 +98,18 @@ class QwenResponse(nn.Module):
                 raise ValueError("Invalid checkpoint functional vectors")
             self.register_buffer("functional_vectors", values)
             self.functional_projector = nn.Sequential(nn.Linear(values.shape[1], h), nn.GELU(), nn.LayerNorm(h))
+        if spec.get("background_interaction"):
+            if reference_values is None:
+                raise ValueError("Background interaction requires a train-only reference response")
+            reference = torch.as_tensor(reference_values, dtype=torch.float32)
+            if reference.shape != (len(perturbations), genes) or not torch.isfinite(reference).all():
+                raise ValueError("Invalid reference response")
+            self.register_buffer("reference_values", reference)
+            self.background_context = nn.Linear(genes, 64)
+            self.background_target = nn.Embedding(len(perturbations), 64)
+            self.background_output = nn.Linear(64, genes)
+            nn.init.zeros_(self.background_output.weight)
+            nn.init.zeros_(self.background_output.bias)
 
     def forward(self, x, p):
         controls = self.input_projector(x.float()).reshape(len(x), self.n_tokens, -1)
@@ -112,7 +124,11 @@ class QwenResponse(nn.Module):
         positions = (mask.cumsum(-1) - 1).clamp_min(0)
         hidden = self.backbone(inputs_embeds=inputs, attention_mask=mask,
                                position_ids=positions, use_cache=False).last_hidden_state[:, -1]
-        return self.output(hidden.float())
+        result = self.output(hidden.float())
+        if hasattr(self, "reference_values"):
+            interaction = F.gelu(self.background_context(x.float())) * self.background_target(p)
+            result = result + self.reference_values[p] + self.background_output(interaction)
+        return result
 
     def adapter_state(self):
         # No copy of the frozen ~0.6B backbone in every experiment checkpoint.
@@ -155,8 +171,12 @@ def validate_config(cfg):
             raise ValueError(f"Invalid {key}")
     if cfg["learning_rate"] == 0:
         raise ValueError("learning_rate must be positive")
-    if cfg["teacher_mix"] not in {"equal", "validation", "reliability"}:
-        raise ValueError("teacher_mix must be equal, validation or reliability")
+    if cfg.get("epoch_train_rows") is not None and int(cfg["epoch_train_rows"]) < 1:
+        raise ValueError("epoch_train_rows must be positive")
+    if cfg["teacher_mix"] not in {"equal", "validation", "reliability", "module"}:
+        raise ValueError("Unknown teacher_mix")
+    if cfg["teacher_mix"] == "module" and cfg["arms"] != ["all"]:
+        raise ValueError("Module distillation requires arms: [all]")
     if cfg.get("loss_weighting", "uniform") not in {"uniform", "context_perturbation"}:
         raise ValueError("Unknown loss_weighting")
     if cfg["model"]["dtype"] not in {"float32", "bfloat16"}:
@@ -167,6 +187,10 @@ def validate_config(cfg):
 
 
 def teacher_targets(cfg, data, val):
+    if cfg["teacher_mix"] == "module":
+        from .specialization import load_distillation
+        values, _, audit = load_distillation(cfg["distillation"], data)
+        return {"all": values}, {"module": audit}, {"module": cfg["distillation"]["sha256"]}, None
     names = teacher_names(cfg)
     needed = set(names) if "all" in cfg["arms"] else set(cfg["arms"]) - {"supervised"}
     unknown = set(cfg.get("teachers", {})) - set(SUPPORTED_TEACHERS)
@@ -237,11 +261,20 @@ def training_weights(cfg, data, train_idx):
 def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
     device = device_from(cfg["device"])
     seed_all(cfg["seed"])
-    model = QwenResponse(len(data["genes"]), data["perturbations"], cfg["model"]).to(device)
     norm = normalization(data)
+    reference = None
+    if cfg["model"].get("background_interaction"):
+        from .specialization import reference_responses
+        reference = reference_responses(data, data["splits"]["train"])[0] / norm["scale"]
+    model = QwenResponse(len(data["genes"]), data["perturbations"], cfg["model"], reference_values=reference).to(device)
     ts = tensors(data, norm)
     loss_weights, kd_gate = training_weights(cfg, data, train_idx)
     kd = None if arm == "supervised" else torch.tensor(targets[arm] / norm["scale"])
+    module_gate = None
+    if cfg["teacher_mix"] == "module":
+        from .specialization import load_distillation
+        _, values, _ = load_distillation(cfg["distillation"], data)
+        module_gate = torch.tensor(values)
     parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
     folder = dest / arm
@@ -264,6 +297,7 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
               "genes": data["genes"].tolist(), "perturbations": data["perturbations"].tolist(),
               "prompt_ids": model.prompt_ids.cpu(), "prompt_mask": model.prompt_mask.cpu(),
               "functional_vectors": model.functional_vectors.cpu() if hasattr(model, "functional_vectors") else None,
+              "reference_values": model.reference_values.cpu() if hasattr(model, "reference_values") else None,
               "normalization": {"mean": torch.tensor(norm["mean"]), "std": torch.tensor(norm["std"]), "scale": norm["scale"]},
               "data_fingerprint": data["audit"]["fingerprint"], "run_fingerprint": stamp}
     val_weights = row_weights(data["meta"].iloc[val_idx])
@@ -276,6 +310,10 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
         started = time.time()
         seed_all(cfg["seed"] + 10000 + epoch)
         order = np.random.default_rng(cfg["seed"] + epoch).permutation(train_idx)
+        if cfg.get("epoch_train_rows") is not None:
+            if int(cfg["epoch_train_rows"]) > len(order):
+                raise ValueError("epoch_train_rows exceeds available training rows")
+            order = order[:int(cfg["epoch_train_rows"])]
         model.train()
         totals = np.zeros(3)
         for step, start in enumerate(range(0, len(order), effective), 1):
@@ -286,8 +324,13 @@ def train_arm(cfg, data, targets, arm, train_idx, val_idx, dest, stamp, resume):
                 prediction = model(ts["x"][ix].to(device), ts["p"][ix].to(device))
                 weight = loss_weights[ix].to(device)
                 sup = ((prediction - ts["y"][ix].to(device)).square().mean(1) * weight).mean()
-                distill = (((prediction - kd[ix].to(device)).square().mean(1) * weight * kd_gate[ix].to(device)).mean()
-                           if kd is not None else sup.detach() * 0)
+                if kd is None:
+                    distill = sup.detach() * 0
+                else:
+                    error = (prediction - kd[ix].to(device)).square()
+                    if module_gate is not None:
+                        error = error * module_gate[ix].to(device)
+                    distill = (error.mean(1) * weight * kd_gate[ix].to(device)).mean()
                 loss = sup + cfg["kd_weight"] * distill
                 if not torch.isfinite(loss):
                     raise FloatingPointError("Nonfinite Qwen loss")
@@ -362,7 +405,8 @@ def run_qwen(cfg, resume=False):
                "normalization_fitted_on": "all prepared training rows",
                "run_kind": "smoke" if cfg.get("max_train_rows") or cfg.get("max_val_rows") else "pilot"})
     predictions = {n: a[val] for n, a in simple_baselines(data).items()}
-    predictions.update({"teacher/" + n: a[val] for n, a in targets.items()})
+    if cfg["teacher_mix"] != "module":
+        predictions.update({"teacher/" + n: a[val] for n, a in targets.items()})
     for arm in cfg["arms"]:
         predictions["qwen/" + arm] = train_arm(cfg, data, targets, arm, train, val, dest, stamp, resume)
         records = [{"model": name, "split": "val", "mse_delta": mse(pred, data["delta"][val], row_weights(data["meta"].iloc[val])),
@@ -380,7 +424,8 @@ def load_qwen_checkpoint(path, device="cpu"):
     if backbone_identity(saved["model_spec"]) != saved["backbone_identity"]:
         raise ValueError("Frozen backbone files changed")
     model = QwenResponse(len(saved["genes"]), saved["perturbations"], saved["model_spec"],
-                         saved["prompt_ids"], saved["prompt_mask"], saved.get("functional_vectors")).to(device).eval()
+                         saved["prompt_ids"], saved["prompt_mask"], saved.get("functional_vectors"),
+                         saved.get("reference_values")).to(device).eval()
     model.load_adapter_state(saved["trainable_state"])
     return model, saved
 
