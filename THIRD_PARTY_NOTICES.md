@@ -100,3 +100,17 @@ Attribute the Gene Ontology Consortium, Reactome and Enrichr authors for these
 annotations. They are third-party annotation data, not newly MIT-licensed data
 authored by this project. No user's gene list or expression matrix was submitted
 to the service; the public libraries were downloaded in full.
+
+# Round 8 public gene knowledge
+
+Round 8 retrieves human gene identifiers, names and summaries through
+[MyGene.info](https://mygene.info/) and functional association edges through the
+[STRING 12.0 API](https://version-12-0.string-db.org/). Gene identifiers are sent
+to these public services; expression matrices and perturbation-response labels
+are not. Request/response snapshots and content hashes stay in the user's data
+directory, rather than being bundled with the repository. Attribute the original
+annotation providers, MyGene.info and STRING when using those assets. Their data
+retain their respective terms and are not relicensed under this code's MIT
+license. STRING association confidence is not a causal effect size or a signed
+regulatory coefficient. Frozen Qwen text representations retain the existing
+Qwen model terms; State-derived distillation restrictions above still apply.

@@ -28,7 +28,7 @@ from vcell.utils import read_config, file_sha256, write_json
 REPO = Path(__file__).resolve().parents[1]
 
 
-def run_jobs(jobs, root, gpu_slots, resume):
+def run_jobs(jobs, root, gpu_slots, resume, label="ROUND7"):
     """Bounded independent processes; each owns its RNG, optimizer and log."""
     active, finished = {}, {}
     pending = list(jobs)
@@ -60,7 +60,7 @@ def run_jobs(jobs, root, gpu_slots, resume):
                     raise
                 active[name] = proc, log
                 pending.remove(name)
-                print(f"ROUND7 START {name} pid={proc.pid} log={log.name}", flush=True)
+                print(f"{label} START {name} pid={proc.pid} log={log.name}", flush=True)
             for name, (proc, log) in list(active.items()):
                 if proc.poll() is not None:
                     code = proc.returncode
@@ -69,13 +69,13 @@ def run_jobs(jobs, root, gpu_slots, resume):
                     finished[name] = code
                     log.close()
                     del active[name]
-                    print(f"ROUND7 EXIT {name} code={code}", flush=True)
+                    print(f"{label} EXIT {name} code={code}", flush=True)
             if time.monotonic()-last_status >= 30 or not active:
                 status = {n: {"state": "running" if n in active else "pending" if n in pending else
                     "complete" if finished[n] == 0 else "failed", "exit_code": finished.get(n),
                     "log": str(root/"logs"/(n+".log"))} for n in jobs}
                 write_json(root/"progress.json", {"jobs": status, "test_evaluated": False})
-                print(f"ROUND7 STATUS completed={sum(v==0 for v in finished.values())}/{len(jobs)} active={list(active)}", flush=True)
+                print(f"{label} STATUS completed={sum(v==0 for v in finished.values())}/{len(jobs)} active={list(active)}", flush=True)
                 last_status = time.monotonic()
             if active:
                 time.sleep(1)

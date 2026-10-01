@@ -13,6 +13,24 @@ pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation/Ge
 teacher caches. Biological weights are downloaded separately. This repository
 predicts mean responses, not single-cell distributions.
 
+## Round 8: gene knowledge and response prediction
+
+The [Round 8 server guide](docs/ROUND8.md) compares fixed gene-text embeddings,
+typed GO/Reactome/STRING associations, module supervision and five-teacher
+distillation. It includes small-network controls, shuffled knowledge controls,
+three generalization protocols, paired seeds, calibration, resumable training
+and a review archive. It reuses the local Qwen snapshot; only the initial public
+knowledge preparation needs network access. No paid model API is used.
+
+```bash
+bash scripts/run_round8_autodl.sh --name round8_01 --resume
+```
+
+Default: 81 student jobs, two concurrent processes on one GPU. See the guide for
+a short smoke run, disk reserve, exact inputs and progress commands. The formal
+test set stays sealed. This is an exploratory numerical experiment, not a
+validated mechanistic reasoning system.
+
 ## Four teachers → two students → one selected model
 
 The [four-teacher AutoDL guide](docs/FOUR_TEACHER_RUN.md) runs actual frozen
