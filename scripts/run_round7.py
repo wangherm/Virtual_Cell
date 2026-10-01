@@ -1,6 +1,8 @@
 """One launch: controlled Qwen expansion, response basis, calibration and native reviewers."""
 import argparse
 import copy
+import io
+from collections import deque
 import json
 import os
 from pathlib import Path
@@ -101,6 +103,12 @@ def package(root):
         for p in sorted(root.rglob("*")):
             if p.is_file() and p.suffix in {".json", ".csv"}:
                 tar.add(p, arcname=str(p.relative_to(root)))
+            elif p.is_file() and p.suffix == ".log":
+                with p.open(encoding="utf-8", errors="replace") as stream:
+                    tail = "".join(deque(stream, maxlen=120)).encode("utf-8")
+                info = tarfile.TarInfo(p.relative_to(root).as_posix())
+                info.size = len(tail)
+                tar.addfile(info, io.BytesIO(tail))
 
 
 def main(argv=None):

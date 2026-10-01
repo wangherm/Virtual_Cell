@@ -4,6 +4,9 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 family="$1"; inputs="$2"; output="$3"; work="$4"; targets="$5"
 export MPLBACKEND=Agg OPENBLAS_NUM_THREADS=2 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
 export CUDA_VISIBLE_DEVICES=""
+# Native workers import no vcell modules. Avoid exposing its editable metadata to pip.
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 mkdir -p "$work/envs" "$work/cache/pip" "$work/cache/conda" "$work/cache/matplotlib" "$work/tmp"
 export PIP_CACHE_DIR="$work/cache/pip" TMPDIR="$work/tmp"
 export CONDA_PKGS_DIRS="$work/cache/conda" XDG_CACHE_HOME="$work/cache" MPLCONFIGDIR="$work/cache/matplotlib"

@@ -124,6 +124,42 @@ def test_round7_all_jobs_fixed_panel_calibration_resume(setup, tmp_path, monkeyp
     runner.main(args+["--resume","--parallel-students","1"])
     with pytest.raises(ValueError,match="Resume"):
         runner.main(args+["--resume","--max-steps","3"])
+    # Native-only recovery reuses all six predictions, even after legacy string serialization.
+    native_audit = prepare_native_inputs(data, load_prepared(root/"prepared/original_only"), root/"native_inputs")
+    from vcell.utils import file_sha256
+    for entry in native_audit["datasets"]:
+        file = root/"native_inputs"/entry["file"]
+        with np.load(file, allow_pickle=False) as f:
+            values = {key:f[key] for key in f.files}
+        values["symbols"] = values["symbols"].astype(object)
+        np.savez_compressed(file, **values)
+        entry["sha256"] = file_sha256(file)
+    write_json(root/"native_inputs/audit.json", native_audit)
+    retry = importlib.import_module("retry_round7_native")
+    before = {str(p.relative_to(root)):file_sha256(p) for p in root.rglob("*") if p.is_file()}
+    def failed_native_jobs(jobs, output, gpu_slots, resume):
+        assert gpu_slots == 0 and set(jobs) == {"celloracle","sctenifold"}
+        assert all(j["resource"] == "cpu" and "qwen-run" not in j["cmd"] for j in jobs.values())
+        (output/"logs").mkdir(exist_ok=True)
+        (output/"logs/celloracle.log").write_text("fixture native failure\n")
+        return {n:1 for n in jobs}
+    monkeypatch.setattr(retry,"run_jobs",failed_native_jobs)
+    recovery=["--work-dir",str(work),"--source-run",str(root),"--data",str(tmp_path/"expanded")]
+    with pytest.raises(RuntimeError,match="Native jobs failed"):
+        retry.main(recovery)
+    supplement=work/"runs/round7_native_retry_01"
+    assert json.loads((supplement/"INCOMPLETE.json").read_text())["students_trained"] == 0
+    assert json.loads((supplement/"input_repair.json").read_text())["counts_library_cells_gene_mapping_identical"]
+    assert before == {str(p.relative_to(root)):file_sha256(p) for p in root.rglob("*") if p.is_file()}
+    import tarfile
+    with tarfile.open(supplement/"round7_review.tar.gz") as archive:
+        assert archive.extractfile("logs/celloracle.log").read() == b"fixture native failure\n"
+    # A changed parent result may not be silently reused on resume.
+    changed = root/"students/plain_plus_h1_seed17/supervised/fixed_endpoint.json"
+    endpoint = json.loads(changed.read_text()); endpoint["optimizer_step"] = 1
+    write_json(changed, endpoint)
+    with pytest.raises(ValueError,match="finish fixed updates"):
+        retry.main(recovery+["--resume"])
 
 
 def test_native_controls_reconstruct_real_aggregation_and_skip_jurkat(setup,tmp_path):
@@ -131,6 +167,11 @@ def test_native_controls_reconstruct_real_aggregation_and_skip_jurkat(setup,tmp_
     audit=prepare_native_inputs(data,data,tmp_path/"native",max_cells=25)
     assert {x["context"] for x in audit["datasets"]}=={"K562","RPE1","HepG2"}
     assert max(x["max_abs_delta_error"] for x in audit["raw_reconstruction_checks"])<2e-5
+    for entry in audit["datasets"]:
+        with np.load(tmp_path/"native"/entry["file"], allow_pickle=False) as f:
+            for key in f.files:
+                assert not f[key].dtype.hasobject
+            assert f["symbols"].dtype.kind == "U"
 
 
 def test_actual_sctenifold_native_api(tmp_path,monkeypatch):

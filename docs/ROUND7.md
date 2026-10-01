@@ -126,6 +126,42 @@ not bypass Round 6's resume guards.
 
 ## Results
 
+### Recover native tools from the initial Round 7 release
+
+The initial export could write gene symbols as NumPy object arrays, causing
+both native workers to stop with `Object arrays cannot be loaded when
+allow_pickle=False`. The corrected exporter uses Unicode arrays. Keep pickle
+loading disabled. Existing student results remain valid.
+
+For a completed student run with this native-input error, update code and use
+the dedicated supplement. Do not use the full Round 7 `--resume` after changing
+source code; its original fingerprint guard remains strict.
+
+```bash
+cd /root/autodl-tmp/virtual_cell &&
+git pull --ff-only &&
+screen -dmS vcell7native bash scripts/retry_round7_native_autodl.sh
+```
+
+This reads `runs/round7_01` and creates `runs/round7_native_retry_01`. It verifies
+all completed student predictions against the parent manifests, regenerates
+native input files from the original raw sources, and checks identical counts,
+library sizes, control identities and CSV gene mappings. It reuses both installed
+native environments and runs two CPU workers. **No student is trained.** The
+parent directory and its completion markers remain unchanged. New provenance
+records distinguish this supplement from an exact-code training resume.
+
+The supplement repeats the primary comparison from existing predictions and
+requires it to equal the parent scores. Its review archive includes native log
+tails (last 120 lines per log), so subsequent failures can be diagnosed. Use
+`--resume` on this supplement only with unchanged supplement code and inputs.
+If the original experiment used a custom `--data`, supply it here too.
+
+```bash
+tail -f "$(ls -t /root/autodl-tmp/vcell-work/logs/round7_native_retry_*.log | head -n 1)"
+# Result: /root/autodl-tmp/vcell-work/runs/round7_native_retry_01/round7_review.tar.gz
+```
+
 `COMPLETE.json` is written only when every requested worker exits successfully.
 `INCOMPLETE.json` lists failed jobs and the review package still includes
 successful results. Tool coverage limitations remain explicit even on success.

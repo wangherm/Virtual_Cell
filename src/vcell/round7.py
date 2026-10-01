@@ -95,7 +95,8 @@ def prepare_native_inputs(original, panel, output, max_cells=512):
             cols = cols[expressed]
             file = entry["context"] + ".npz"
             np.savez_compressed(output / file, raw=raw[:, cols].astype(np.float32), library=library,
-                genes=genes[cols], symbols=symbols[cols], cell_ids=a.obs_names[chosen].to_numpy(dtype="U"))
+                genes=np.asarray(genes[cols], dtype="U"), symbols=np.asarray(symbols[cols], dtype="U"),
+                cell_ids=a.obs_names[chosen].to_numpy(dtype="U"))
             pd.DataFrame({"gene_id": genes[cols], "symbol": symbols[cols]}).to_csv(output / (entry["context"]+"_genes.csv"), index=False)
             datasets.append({"context": entry["context"], "dataset": entry["id"], "file": file,
                 "sha256": file_sha256(output / file), "targets": targets, "n_controls": len(raw),
