@@ -1,0 +1,554 @@
+{
+  "schema_version": 1,
+  "accessed": "2026-10-02",
+  "note": "Pinned public CELLxGENE H5AD versions; inspection only, no training admission.",
+  "datasets": [
+    {
+      "key": "ts_blood",
+      "atlas": "tabula",
+      "role": "background_training_candidate",
+      "title": "Tabula Sapiens - Blood",
+      "collection_id": "e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_version_id": "61d34250-a255-4c7c-b2f0-0e012fbe2e78",
+      "collection_url": "https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_doi": "10.1126/science.abl4896",
+      "dataset_id": "983d5ec9-40e8-4512-9e65-a572a9c486cb",
+      "dataset_version_id": "1bf55482-ad49-446a-87c6-f3442bebcef1",
+      "url": "https://datasets.cellxgene.cziscience.com/1bf55482-ad49-446a-87c6-f3442bebcef1.h5ad",
+      "size_bytes": 2568875081,
+      "catalog_cell_count": 85233,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "10x 5' v2",
+          "ontology_term_id": "EFO:0009900"
+        },
+        {
+          "label": "Smart-seq2",
+          "ontology_term_id": "EFO:0008931"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "blood",
+          "ontology_term_id": "UBERON:0000178",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://registry.opendata.aws/tabula-sapiens/"
+        },
+        {
+          "link_name": "Tabula Sapiens Portal",
+          "link_type": "LAB_WEBSITE",
+          "link_url": "https://tabula-sapiens-portal.ds.czbiohub.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://explore.data.humancellatlas.org/projects/10201832-7c73-4033-9b65-3ef13d81656a"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://cells.ucsc.edu/?ds=tabula-sapiens"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=1437536541_FfasmBrAlAiA7oFphu1csVv0KHgc&db=hg38&c=chrX&g=tabulaSapiens"
+        },
+        {
+          "link_name": "The Tabula Sapiens Consortium et al. (2024) bioRxiv",
+          "link_type": "DATA_SOURCE",
+          "link_url": "https://doi.org/10.1101/2024.12.03.626516"
+        }
+      ]
+    },
+    {
+      "key": "ts_liver",
+      "atlas": "tabula",
+      "role": "background_training_candidate",
+      "title": "Tabula Sapiens - Liver",
+      "collection_id": "e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_version_id": "61d34250-a255-4c7c-b2f0-0e012fbe2e78",
+      "collection_url": "https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_doi": "10.1126/science.abl4896",
+      "dataset_id": "6d41668c-168c-4500-b06a-4674ccf3e19d",
+      "dataset_version_id": "a4b3a49e-062b-4e3f-8915-02f40607651f",
+      "url": "https://datasets.cellxgene.cziscience.com/a4b3a49e-062b-4e3f-8915-02f40607651f.h5ad",
+      "size_bytes": 834485899,
+      "catalog_cell_count": 22214,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "Smart-seq2",
+          "ontology_term_id": "EFO:0008931"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "liver",
+          "ontology_term_id": "UBERON:0002107",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://registry.opendata.aws/tabula-sapiens/"
+        },
+        {
+          "link_name": "Tabula Sapiens Portal",
+          "link_type": "LAB_WEBSITE",
+          "link_url": "https://tabula-sapiens-portal.ds.czbiohub.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://explore.data.humancellatlas.org/projects/10201832-7c73-4033-9b65-3ef13d81656a"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://cells.ucsc.edu/?ds=tabula-sapiens"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=1437536541_FfasmBrAlAiA7oFphu1csVv0KHgc&db=hg38&c=chrX&g=tabulaSapiens"
+        },
+        {
+          "link_name": "The Tabula Sapiens Consortium et al. (2024) bioRxiv",
+          "link_type": "DATA_SOURCE",
+          "link_url": "https://doi.org/10.1101/2024.12.03.626516"
+        }
+      ]
+    },
+    {
+      "key": "ts_bone_marrow",
+      "atlas": "tabula",
+      "role": "background_training_candidate",
+      "title": "Tabula Sapiens - Bone_Marrow",
+      "collection_id": "e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_version_id": "61d34250-a255-4c7c-b2f0-0e012fbe2e78",
+      "collection_url": "https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_doi": "10.1126/science.abl4896",
+      "dataset_id": "4f1555bc-4664-46c3-a606-78d34dd10d92",
+      "dataset_version_id": "4aedb645-7487-4ab0-ad95-ee4db1b8eccd",
+      "url": "https://datasets.cellxgene.cziscience.com/4aedb645-7487-4ab0-ad95-ee4db1b8eccd.h5ad",
+      "size_bytes": 1030908100,
+      "catalog_cell_count": 27112,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "10x 5' v2",
+          "ontology_term_id": "EFO:0009900"
+        },
+        {
+          "label": "Smart-seq2",
+          "ontology_term_id": "EFO:0008931"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "bone marrow",
+          "ontology_term_id": "UBERON:0002371",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://registry.opendata.aws/tabula-sapiens/"
+        },
+        {
+          "link_name": "Tabula Sapiens Portal",
+          "link_type": "LAB_WEBSITE",
+          "link_url": "https://tabula-sapiens-portal.ds.czbiohub.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://explore.data.humancellatlas.org/projects/10201832-7c73-4033-9b65-3ef13d81656a"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://cells.ucsc.edu/?ds=tabula-sapiens"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=1437536541_FfasmBrAlAiA7oFphu1csVv0KHgc&db=hg38&c=chrX&g=tabulaSapiens"
+        },
+        {
+          "link_name": "The Tabula Sapiens Consortium et al. (2024) bioRxiv",
+          "link_type": "DATA_SOURCE",
+          "link_url": "https://doi.org/10.1101/2024.12.03.626516"
+        }
+      ]
+    },
+    {
+      "key": "ts_lung",
+      "atlas": "tabula",
+      "role": "background_training_candidate",
+      "title": "Tabula Sapiens - Lung",
+      "collection_id": "e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_version_id": "61d34250-a255-4c7c-b2f0-0e012fbe2e78",
+      "collection_url": "https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_doi": "10.1126/science.abl4896",
+      "dataset_id": "0d2ee4ac-05ee-40b2-afb6-ebb584caa867",
+      "dataset_version_id": "fddf43a3-b7c8-49e9-ac0a-5e24b390849f",
+      "url": "https://datasets.cellxgene.cziscience.com/fddf43a3-b7c8-49e9-ac0a-5e24b390849f.h5ad",
+      "size_bytes": 3196847981,
+      "catalog_cell_count": 65847,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "Smart-seq2",
+          "ontology_term_id": "EFO:0008931"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "lung",
+          "ontology_term_id": "UBERON:0002048",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://registry.opendata.aws/tabula-sapiens/"
+        },
+        {
+          "link_name": "Tabula Sapiens Portal",
+          "link_type": "LAB_WEBSITE",
+          "link_url": "https://tabula-sapiens-portal.ds.czbiohub.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://explore.data.humancellatlas.org/projects/10201832-7c73-4033-9b65-3ef13d81656a"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://cells.ucsc.edu/?ds=tabula-sapiens"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=1437536541_FfasmBrAlAiA7oFphu1csVv0KHgc&db=hg38&c=chrX&g=tabulaSapiens"
+        },
+        {
+          "link_name": "The Tabula Sapiens Consortium et al. (2024) bioRxiv",
+          "link_type": "DATA_SOURCE",
+          "link_url": "https://doi.org/10.1101/2024.12.03.626516"
+        }
+      ]
+    },
+    {
+      "key": "ts_skin",
+      "atlas": "tabula",
+      "role": "background_training_candidate",
+      "title": "Tabula Sapiens - Skin",
+      "collection_id": "e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_version_id": "61d34250-a255-4c7c-b2f0-0e012fbe2e78",
+      "collection_url": "https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5",
+      "collection_doi": "10.1126/science.abl4896",
+      "dataset_id": "0041b9c3-6a49-4bf7-8514-9bc7190067a7",
+      "dataset_version_id": "c240d5bc-a521-4330-a76b-7d566e939d87",
+      "url": "https://datasets.cellxgene.cziscience.com/c240d5bc-a521-4330-a76b-7d566e939d87.h5ad",
+      "size_bytes": 508729263,
+      "catalog_cell_count": 17786,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "Smart-seq2",
+          "ontology_term_id": "EFO:0008931"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "buccal mucosa",
+          "ontology_term_id": "UBERON:0006956",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "skin of abdomen",
+          "ontology_term_id": "UBERON:0001416",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "skin of body",
+          "ontology_term_id": "UBERON:0002097",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "skin of chest",
+          "ontology_term_id": "UBERON:0001868",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://registry.opendata.aws/tabula-sapiens/"
+        },
+        {
+          "link_name": "Tabula Sapiens Portal",
+          "link_type": "LAB_WEBSITE",
+          "link_url": "https://tabula-sapiens-portal.ds.czbiohub.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://explore.data.humancellatlas.org/projects/10201832-7c73-4033-9b65-3ef13d81656a"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://cells.ucsc.edu/?ds=tabula-sapiens"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=1437536541_FfasmBrAlAiA7oFphu1csVv0KHgc&db=hg38&c=chrX&g=tabulaSapiens"
+        },
+        {
+          "link_name": "The Tabula Sapiens Consortium et al. (2024) bioRxiv",
+          "link_type": "DATA_SOURCE",
+          "link_url": "https://doi.org/10.1101/2024.12.03.626516"
+        }
+      ]
+    },
+    {
+      "key": "hlca_core",
+      "atlas": "hlca",
+      "role": "external_validation_candidate_overlap_unverified",
+      "title": "An integrated cell atlas of the human lung in health and disease (core)",
+      "collection_id": "6f6d381a-7701-4781-935c-db10d30de293",
+      "collection_version_id": "3e480820-4fd0-4722-84e3-4602f8c28a70",
+      "collection_url": "https://cellxgene.cziscience.com/collections/6f6d381a-7701-4781-935c-db10d30de293",
+      "collection_doi": "10.1038/s41591-023-02327-2",
+      "dataset_id": "066943a2-fdac-4b29-b348-40cede398e4e",
+      "dataset_version_id": "688185ad-11c2-4172-a53a-f4f1f4076860",
+      "url": "https://datasets.cellxgene.cziscience.com/688185ad-11c2-4172-a53a-f4f1f4076860.h5ad",
+      "size_bytes": 5873612847,
+      "catalog_cell_count": 584944,
+      "assay": [
+        {
+          "label": "10x 3' v1",
+          "ontology_term_id": "EFO:0009901"
+        },
+        {
+          "label": "10x 3' v2",
+          "ontology_term_id": "EFO:0009899"
+        },
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "10x 5' v1",
+          "ontology_term_id": "EFO:0011025"
+        },
+        {
+          "label": "10x 5' v2",
+          "ontology_term_id": "EFO:0009900"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "lung parenchyma",
+          "ontology_term_id": "UBERON:0008946",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "nose",
+          "ontology_term_id": "UBERON:0000004",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "respiratory airway",
+          "ontology_term_id": "UBERON:0001005",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "HLCA landing page",
+          "link_type": "OTHER",
+          "link_url": "https://github.com/LungCellAtlas/HLCA"
+        }
+      ]
+    },
+    {
+      "key": "immune_global",
+      "atlas": "immune",
+      "role": "external_validation_candidate_overlap_unverified",
+      "title": "Global",
+      "collection_id": "62ef75e4-cbea-454e-a0ce-998ec40223d3",
+      "collection_version_id": "1217c1b3-4a9c-4e90-baeb-1f67a043709a",
+      "collection_url": "https://cellxgene.cziscience.com/collections/62ef75e4-cbea-454e-a0ce-998ec40223d3",
+      "collection_doi": "10.1126/science.abl5197",
+      "dataset_id": "1b9d8702-5af8-4142-85ed-020eb06ec4f6",
+      "dataset_version_id": "09a381ce-feaf-48c8-a928-58f6768f4265",
+      "url": "https://datasets.cellxgene.cziscience.com/09a381ce-feaf-48c8-a928-58f6768f4265.h5ad",
+      "size_bytes": 3036698635,
+      "catalog_cell_count": 329762,
+      "assay": [
+        {
+          "label": "10x 3' v3",
+          "ontology_term_id": "EFO:0009922"
+        },
+        {
+          "label": "10x 5' v1",
+          "ontology_term_id": "EFO:0011025"
+        },
+        {
+          "label": "10x 5' v2",
+          "ontology_term_id": "EFO:0009900"
+        }
+      ],
+      "tissue": [
+        {
+          "label": "blood",
+          "ontology_term_id": "UBERON:0000178",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "bone marrow",
+          "ontology_term_id": "UBERON:0002371",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "caecum",
+          "ontology_term_id": "UBERON:0001153",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "duodenum",
+          "ontology_term_id": "UBERON:0002114",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "ileum",
+          "ontology_term_id": "UBERON:0002116",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "jejunal epithelium",
+          "ontology_term_id": "UBERON:0000400",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "jejunum lamina propria",
+          "ontology_term_id": "UBERON:8600034",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "liver",
+          "ontology_term_id": "UBERON:0002107",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "lung",
+          "ontology_term_id": "UBERON:0002048",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "mesenteric lymph node",
+          "ontology_term_id": "UBERON:0002509",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "omentum",
+          "ontology_term_id": "UBERON:0003688",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "sigmoid colon",
+          "ontology_term_id": "UBERON:0001159",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "skeletal muscle tissue",
+          "ontology_term_id": "UBERON:0001134",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "spleen",
+          "ontology_term_id": "UBERON:0002106",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "thoracic lymph node",
+          "ontology_term_id": "UBERON:0007644",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "thymus",
+          "ontology_term_id": "UBERON:0002370",
+          "tissue_type": "tissue"
+        },
+        {
+          "label": "transverse colon",
+          "ontology_term_id": "UBERON:0001157",
+          "tissue_type": "tissue"
+        }
+      ],
+      "source_links": [
+        {
+          "link_name": "E-MTAB-11536",
+          "link_type": "RAW_DATA",
+          "link_url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11536"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "http://pan-immune.cells.ucsc.edu/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://www.celltypist.org/"
+        },
+        {
+          "link_name": "",
+          "link_type": "OTHER",
+          "link_url": "https://singlecell.broadinstitute.org/single_cell/study/SCP1845"
+        },
+        {
+          "link_name": "",
+          "link_type": "RAW_DATA",
+          "link_url": "https://explore.data.humancellatlas.org/projects/04e4292c-f62f-4098-ae9b-fd69ae002a90"
+        }
+      ]
+    }
+  ]
+}

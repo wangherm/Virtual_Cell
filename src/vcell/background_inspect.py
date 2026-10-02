@@ -183,12 +183,13 @@ def column(group, key, limit=None):
     raise ValueError(f'Unsupported annotation encoding: {key}')
 
 
-def inspect_h5ad(path, panel=None, sample_rows=256):
+def inspect_h5ad(path, panel=None, sample_rows=256, matrix='X'):
     """Bounded HDF5 reads: no dense full-matrix conversion, no label transformations."""
     result = {'file': str(path), 'bytes': Path(path).stat().st_size,
-              'training_admitted': False, 'warnings': [], 'qc_scope': 'sampled X, not full cell QC'}
+              'training_admitted': False, 'warnings': [], 'qc_scope': f'sampled {matrix}, not full cell QC'}
     with h5py.File(path, 'r') as f:
-        x = f['X']
+        x = f[matrix]
+        result['matrix_path'] = matrix
         if isinstance(x, h5py.Dataset):
             shape, encoding = x.shape, 'dense'
         else:
@@ -200,7 +201,8 @@ def inspect_h5ad(path, panel=None, sample_rows=256):
             raise ValueError('Empty or non-matrix X')
         result.update(n_cells=int(shape[0]), n_genes=int(shape[1]), x_encoding=encoding,
                       layers=list(f.get('layers', {})), obs_columns=list(f['obs']), var_columns=list(f['var']))
-        var = f['var']
+        var = f['raw/var'] if matrix == 'raw/X' else f['var']
+        result['var_columns'] = list(var)
         index_key = var.attrs.get('_index', '_index')
         if isinstance(index_key, bytes):
             index_key = index_key.decode()

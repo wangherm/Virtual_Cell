@@ -15,6 +15,16 @@ predicts mean responses, not single-cell distributions.
 
 ## Background acquisition and inspection
 
+Start with the [anonymous public-atlas workflow](docs/PUBLIC_BACKGROUND_INSPECT.md):
+Tabula Sapiens tissue subsets, HLCA core and the cross-tissue immune atlas.
+It downloads pinned CELLxGENE H5AD versions without cloud accounts and inspects
+X, raw/X, all layers and donor/tissue/assay annotations separately. Default:
+five files, approximately 15.7 GB. No training or cell filtering is performed.
+
+```bash
+bash scripts/inspect_public_background_autodl.sh
+```
+
 The [scBaseCount inspection guide](docs/BACKGROUND_INSPECT.md) prepares a bounded
 human K562/RPE1/H1 candidate download, resumable cloud transfers, sampled H5AD QC,
 and an HTML/JSON review package. Downloaded samples remain quarantined pending
