@@ -153,6 +153,7 @@ def pretrain(cfg,resume=False):
     actual={'config':cfg,'source':source_fingerprint(),'data':data['audit']['fingerprint'],
             'background':file_sha256(cache/'COMPLETE.json'),
             'model_config':file_sha256(Path(cfg['model']['model_id'])/'config.json')}
+    if cfg.get('aggregate_dir'):actual['aggregates']=file_sha256(Path(cfg['aggregate_dir'])/'COMPLETE.json')
     stamp=fingerprint(actual)
     if dest.exists() and any(dest.iterdir()):
         if not resume or not (dest/'manifest.json').exists() or json.loads((dest/'manifest.json').read_text())['fingerprint']!=stamp:
@@ -165,11 +166,15 @@ def pretrain(cfg,resume=False):
     dest.mkdir(parents=True,exist_ok=True);write_json(dest/'manifest.json',{'fingerprint':stamp,**actual})
     public=np.load(cache/'train.npy',mmap_mode='r');meta=pd.read_csv(cache/'train_metadata.csv')
     masks=np.load(cache/'masks.npy');mask_index=meta.mask_index.to_numpy()
+    aggregate_values=cell_to_group=None
+    if cfg['background']=='b3':
+        from .round10 import load_aggregates
+        aggregate_values,cell_to_group=load_aggregates(cfg['aggregate_dir'],cache)
     controls=matched_controls(data,cfg['partition'])
     seed_all(cfg['seed']);model=BackgroundAutoencoder(len(data['genes']),cfg['family'],cfg['model'],cfg['seed']).to(cfg['device'])
     optimizer=torch.optim.AdamW(model.parameters(),lr=.0002,weight_decay=.01)
     first=0;history=[];steps=int(cfg['pretrain_steps']);batch=int(cfg['pretrain_batch'])
-    if cfg['background'] not in ('b1','b2') or batch<2 or steps<1:raise ValueError('Invalid background pretraining plan')
+    if cfg['background'] not in ('b1','b2','b3') or batch<2 or steps<1:raise ValueError('Invalid background pretraining plan')
     if resume and (dest/'last.pt').exists():
         saved=torch.load(dest/'last.pt',map_location='cpu',weights_only=True)
         if saved['fingerprint']!=stamp:raise ValueError('Background checkpoint mismatch')
@@ -177,12 +182,13 @@ def pretrain(cfg,resume=False):
         first,history=saved['step'],saved['history']
     for step in range(first,steps):
         seed_all(cfg['seed']+30000+step)
-        npublic=batch//2 if cfg['background']=='b2' else 0
+        npublic=batch//2 if cfg['background'] in ('b2','b3') else 0
         ci=step_rows(np.arange(len(controls)),cfg['seed'],step,batch-npublic)
         values=controls[ci];available=np.ones_like(values,dtype=bool)
         if npublic:
             pi=step_rows(np.arange(len(public)),cfg['seed'],step,npublic)
-            values=np.concatenate([values,public[pi]]);available=np.concatenate([available,masks[mask_index[pi]]])
+            extra=public[pi] if aggregate_values is None else aggregate_values[cell_to_group[pi]]
+            values=np.concatenate([values,extra]);available=np.concatenate([available,masks[mask_index[pi]]])
         x=torch.tensor(np.where(available,(values-norm['mean'])/norm['std'],0),device=cfg['device'])
         mask=torch.tensor(available,device=cfg['device'])
         damaged=x.masked_fill(torch.rand_like(x)<.2,0)
@@ -202,13 +208,20 @@ def pretrain(cfg,resume=False):
         'normalization':{k:torch.tensor(v) for k,v in norm.items()},'genes':data['genes'].tolist(),
         'family':cfg['family'],'background':cfg['background'],'partition':cfg['partition']},dest/'encoder.pt')
     diagnose_background(model,norm,cache,dest,cfg)
+    if cfg.get('aggregate_dir'):
+        from .round10 import diagnose_grouped_background
+        diagnose_grouped_background(model,norm,cfg['aggregate_dir'],cache,dest,cfg['device'])
     write_json(dest/'exposure.json',{'optimizer_steps':steps,'cells_seen':steps*batch,
         'unique_matched_control_pseudobulks':len(controls),'public_train_cells':len(public),
-        'public_cells_seen':steps*(batch//2) if cfg['background']=='b2' else 0,
+        'public_cells_seen':steps*(batch//2) if cfg['background'] in ('b2','b3') else 0,
+        'public_input_unit':'group_mean_log_expression' if cfg['background']=='b3' else 'single_cell',
+        'public_unique_groups':len(aggregate_values) if aggregate_values is not None else None,
         'note':'B1 repeats matched control pseudobulks; B2 mixes these with public single cells 1:1. '
+               'B3 replaces each B2 sampled cell by its training-only group mean, preserving group exposure weights. '
                'Added data scale and aggregation level differ. No validation or external cells fitted.',
         'test_evaluated':False})
     names=['encoder.pt','history.csv','background_diagnostics.csv','exposure.json','val_latent.json','external_candidate_latent.json']
+    if cfg.get('aggregate_dir'):names+=['grouped_background_diagnostics.csv','grouped_background_summary.json']
     write_json(dest/'COMPLETE.json',{'fingerprint':stamp,'files':{n:file_sha256(dest/n) for n in names}})
     print(f'BACKGROUND PRETRAIN COMPLETE: {dest}',flush=True)
     return dest

@@ -282,6 +282,7 @@ source code. The default pipeline uses one device, not distributed training.
 
 ## Documentation
 
+- [Round 10: grouped backgrounds, new context holdouts and limited warmup](docs/ROUND10.md)
 - [Round 9: full background training, module controls and diagnostics](docs/ROUND9.md)
 - [Public background cleaning, donor splits and audit reports](docs/BACKGROUND_PREPARATION.md)
 - [Round 7: parallel students, H1 expansion and native mechanism reviewers](docs/ROUND7.md)

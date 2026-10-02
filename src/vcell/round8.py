@@ -160,7 +160,7 @@ def worker(cfg, resume=False):
     actual = {'config': cfg, 'data': data['audit']['fingerprint'], 'source': source_fingerprint(),
               'knowledge': file_sha256(cfg['knowledge']), 'backbone': backbone_identity(cfg['model']),
               'teacher': file_sha256(cfg['teacher_cache']) if cfg.get('teacher_cache') else None}
-    if cfg.get('experiment')=='round9':
+    if cfg.get('experiment') in ('round9','round10'):
         actual['background_encoder']=file_sha256(cfg['encoder']) if cfg.get('encoder') else None
     stamp = hashlib.sha256(json.dumps(actual, sort_keys=True).encode()).hexdigest()
     dest = Path(cfg['output_dir'])
@@ -182,7 +182,7 @@ def worker(cfg, resume=False):
     write_json(dest/'basis_audit.json', audit)
     seed_all(cfg['seed'])
     device = cfg['device']
-    if cfg.get('experiment')=='round9':
+    if cfg.get('experiment') in ('round9','round10'):
         from .round9 import BackgroundResponse
         model=BackgroundResponse(data,assets,cfg,basis,norm).to(device)
     else:
@@ -214,19 +214,24 @@ def worker(cfg, resume=False):
         rows = step_rows(fit, cfg['seed'], step, cfg['batch_size']*cfg['gradient_accumulation'])
         model.train(); optimizer.zero_grad(set_to_none=True)
         losses = np.zeros(3)
+        module_weight=cfg['module_weight']
+        if cfg.get('module_warmup_steps',0):
+            from .round10 import warmup_weight
+            module_weight=warmup_weight(step,cfg['module_warmup_steps'],cfg['module_weight'])
         for start in range(0, len(rows), cfg['batch_size']):
             ix = rows[start:start+cfg['batch_size']]
             y = ts['y'][ix].to(device)
             pred, module = model(ts['x'][ix].to(device), ts['p'][ix].to(device))
             sup = (pred-y).square().mean()
             aux = (module-y @ model.module_matrix.T).square().mean() if cfg['arm'] in ('qwen_modules', 'qwen_kd') else sup*0
-            if cfg.get('experiment')=='round9':
+            if cfg.get('experiment') in ('round9','round10'):
                 from .round9 import module_loss, gradient_diagnostic
                 aux=module_loss(pred,module,y,model.module_matrix,cfg['module_mode'])
                 if start==0 and cfg['module_mode']!='none' and (step==0 or (step+1)%cfg['diagnostic_every']==0):
-                    gradient_history.append({'step':step+1,**gradient_diagnostic(model,sup,aux,cfg['module_weight'])})
+                    gradient_history.append({'step':step+1,'module_weight':module_weight,
+                                             **gradient_diagnostic(model,sup,aux,module_weight)})
             distill = ((pred-kd[ix].to(device)).square().mean(1)*gate[ix].to(device)).mean() if kd is not None else sup*0
-            loss = sup + cfg['module_weight']*aux + cfg['kd_weight']*distill
+            loss = sup + module_weight*aux + cfg['kd_weight']*distill
             if not torch.isfinite(loss):
                 raise FloatingPointError('Nonfinite Round8 loss')
             (loss*len(ix)/len(rows)).backward()
@@ -239,14 +244,14 @@ def worker(cfg, resume=False):
         if done % cfg['save_every'] == 0 or done == cfg['max_steps']:
             # No outer labels used for stopping or checkpoint selection.
             history.append({'step': done, 'supervised_loss': float(losses[0]), 'module_loss': float(losses[1]),
-                            'kd_loss': float(losses[2]), 'interval_seconds': time.monotonic()-timer})
+                            'module_weight':module_weight,'kd_loss': float(losses[2]), 'interval_seconds': time.monotonic()-timer})
             atomic_torch_save({'fingerprint': stamp, 'state': model.adapter_state(), 'optimizer': optimizer.state_dict(),
                               'step': done, 'history': history,'gradient_history':gradient_history}, dest/'last.pt')
             pd.DataFrame(history).to_csv(dest/'history.csv', index=False)
             write_json(dest/'progress.json', {'step': done, 'max_steps': cfg['max_steps'], 'test_evaluated': False})
             timer = time.monotonic()
-    if cfg.get('experiment')=='round9':
-        pd.DataFrame(gradient_history,columns=['step','supervised_norm','weighted_module_norm','cosine']).to_csv(dest/'gradient_diagnostics.csv',index=False)
+    if cfg.get('experiment') in ('round9','round10'):
+        pd.DataFrame(gradient_history,columns=['step','module_weight','supervised_norm','weighted_module_norm','cosine']).to_csv(dest/'gradient_diagnostics.csv',index=False)
     atomic_torch_save({'format': 'vcell-round8-v1', 'fingerprint': stamp, 'config': cfg,
         'state': model.adapter_state(), 'basis': torch.tensor(basis), 'backbone': actual['backbone'],
         'knowledge_sha256': actual['knowledge'], 'normalization': {k:torch.tensor(v) for k,v in norm.items()},
@@ -272,7 +277,7 @@ def worker(cfg, resume=False):
         'auxiliary_expression_consistency_mse':float(np.mean((om-op@model.module_matrix.detach().cpu().numpy().T)**2)),
         'selection': 'fixed final optimizer step, no outer early stopping', 'test_evaluated': False})
     complete_files=['endpoint.pt','predictions.npz','calibration.json']
-    if cfg.get('experiment')=='round9':complete_files.append('gradient_diagnostics.csv')
+    if cfg.get('experiment') in ('round9','round10'):complete_files.append('gradient_diagnostics.csv')
     write_json(dest/'COMPLETE.json', {'fingerprint': stamp, 'test_evaluated': False,
         'files': {n:file_sha256(dest/n) for n in complete_files}})
     print(f'{label} STUDENT COMPLETE: {dest}', flush=True)
@@ -287,7 +292,7 @@ def load_checkpoint(path, data, device='cpu'):
     if file_sha256(cfg['knowledge']) != saved['knowledge_sha256'] or backbone_identity(cfg['model']) != saved['backbone']:
         raise ValueError('Round8 checkpoint dependency changed')
     norm = {k:v.numpy() if v.ndim else float(v) for k,v in saved['normalization'].items()}
-    if cfg.get('experiment')=='round9':
+    if cfg.get('experiment') in ('round9','round10'):
         from .round9 import BackgroundResponse
         model=BackgroundResponse(data,load_knowledge(cfg['knowledge'],data),cfg,saved['basis'],norm,load_encoder=False).to(device)
     else:
