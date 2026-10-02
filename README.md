@@ -13,6 +13,15 @@ pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation/Ge
 teacher caches. Biological weights are downloaded separately. This repository
 predicts mean responses, not single-cell distributions.
 
+## Background acquisition and inspection
+
+The [scBaseCount inspection guide](docs/BACKGROUND_INSPECT.md) prepares a bounded
+human K562/RPE1/H1 candidate download, resumable cloud transfers, sampled H5AD QC,
+and an HTML/JSON review package. Downloaded samples remain quarantined pending
+biological/source review. This workflow does not train models. Google Cloud
+Marketplace subscription and Application Default Credentials are required for
+cloud access; local metadata and H5AD inspection can run offline.
+
 ## Round 8: gene knowledge and response prediction
 
 The [Round 8 server guide](docs/ROUND8.md) compares fixed gene-text embeddings,

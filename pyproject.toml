@@ -15,6 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+background = ["pyarrow>=15,<24", "google-cloud-storage>=2.18,<4", "google-crc32c>=1.5,<2", "h5py>=3.10,<4"]
 # Offline Qwen/LoRA integration tests must run in a normal development install,
 # including the existing CPU CI, rather than silently skipping the new pipeline.
 dev = ["pytest>=8,<10", "transformers==4.57.3", "peft==0.18.0"]
