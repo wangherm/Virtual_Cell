@@ -153,12 +153,15 @@ def predict(model, ts, rows, device, batch):
 
 def worker(cfg, resume=False):
     torch.set_num_threads(2)
+    label=cfg.get('experiment','round8').upper()
     data = load_prepared(cfg['data_dir'])
     validate_partition(data, cfg['partition'])
     assets = load_knowledge(cfg['knowledge'], data)
     actual = {'config': cfg, 'data': data['audit']['fingerprint'], 'source': source_fingerprint(),
               'knowledge': file_sha256(cfg['knowledge']), 'backbone': backbone_identity(cfg['model']),
               'teacher': file_sha256(cfg['teacher_cache']) if cfg.get('teacher_cache') else None}
+    if cfg.get('experiment')=='round9':
+        actual['background_encoder']=file_sha256(cfg['encoder']) if cfg.get('encoder') else None
     stamp = hashlib.sha256(json.dumps(actual, sort_keys=True).encode()).hexdigest()
     dest = Path(cfg['output_dir'])
     if dest.exists() and any(dest.iterdir()):
@@ -179,7 +182,11 @@ def worker(cfg, resume=False):
     write_json(dest/'basis_audit.json', audit)
     seed_all(cfg['seed'])
     device = cfg['device']
-    model = KnowledgeResponse(data, assets, cfg['model'], cfg['arm'], basis).to(device)
+    if cfg.get('experiment')=='round9':
+        from .round9 import BackgroundResponse
+        model=BackgroundResponse(data,assets,cfg,basis,norm).to(device)
+    else:
+        model = KnowledgeResponse(data, assets, cfg['model'], cfg['arm'], basis).to(device)
     ts = tensors(data, norm)
     kd, gate = None, None
     if cfg['arm'] == 'qwen_kd':
@@ -193,13 +200,14 @@ def worker(cfg, resume=False):
             raise ValueError('KD outside fit rows')
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=cfg['learning_rate'], weight_decay=.01)
-    first, history = 0, []
+    first, history, gradient_history = 0, [], []
     if resume and (dest/'last.pt').exists():
         saved = torch.load(dest/'last.pt', map_location='cpu', weights_only=True)
         if saved['fingerprint'] != stamp:
             raise ValueError('Resume checkpoint mismatch')
         model.restore(saved['state']); optimizer.load_state_dict(saved['optimizer'])
         first, history = saved['step'], saved['history']
+        gradient_history=saved.get('gradient_history',[])
     timer = time.monotonic()
     for step in range(first, cfg['max_steps']):
         seed_all(cfg['seed']+10000+step)
@@ -212,6 +220,11 @@ def worker(cfg, resume=False):
             pred, module = model(ts['x'][ix].to(device), ts['p'][ix].to(device))
             sup = (pred-y).square().mean()
             aux = (module-y @ model.module_matrix.T).square().mean() if cfg['arm'] in ('qwen_modules', 'qwen_kd') else sup*0
+            if cfg.get('experiment')=='round9':
+                from .round9 import module_loss, gradient_diagnostic
+                aux=module_loss(pred,module,y,model.module_matrix,cfg['module_mode'])
+                if start==0 and cfg['module_mode']!='none' and (step==0 or (step+1)%cfg['diagnostic_every']==0):
+                    gradient_history.append({'step':step+1,**gradient_diagnostic(model,sup,aux,cfg['module_weight'])})
             distill = ((pred-kd[ix].to(device)).square().mean(1)*gate[ix].to(device)).mean() if kd is not None else sup*0
             loss = sup + cfg['module_weight']*aux + cfg['kd_weight']*distill
             if not torch.isfinite(loss):
@@ -222,16 +235,18 @@ def worker(cfg, resume=False):
         optimizer.step()
         done = step+1
         if done == 1 or done % 50 == 0:
-            print(f'ROUND8 {cfg["arm"]} step={done}/{cfg["max_steps"]} sup={losses[0]:.5f} module={losses[1]:.5f} kd={losses[2]:.5f}', flush=True)
+            print(f'{label} {cfg["arm"]} step={done}/{cfg["max_steps"]} sup={losses[0]:.5f} module={losses[1]:.5f} kd={losses[2]:.5f}', flush=True)
         if done % cfg['save_every'] == 0 or done == cfg['max_steps']:
             # No outer labels used for stopping or checkpoint selection.
             history.append({'step': done, 'supervised_loss': float(losses[0]), 'module_loss': float(losses[1]),
                             'kd_loss': float(losses[2]), 'interval_seconds': time.monotonic()-timer})
             atomic_torch_save({'fingerprint': stamp, 'state': model.adapter_state(), 'optimizer': optimizer.state_dict(),
-                              'step': done, 'history': history}, dest/'last.pt')
+                              'step': done, 'history': history,'gradient_history':gradient_history}, dest/'last.pt')
             pd.DataFrame(history).to_csv(dest/'history.csv', index=False)
             write_json(dest/'progress.json', {'step': done, 'max_steps': cfg['max_steps'], 'test_evaluated': False})
             timer = time.monotonic()
+    if cfg.get('experiment')=='round9':
+        pd.DataFrame(gradient_history,columns=['step','supervised_norm','weighted_module_norm','cosine']).to_csv(dest/'gradient_diagnostics.csv',index=False)
     atomic_torch_save({'format': 'vcell-round8-v1', 'fingerprint': stamp, 'config': cfg,
         'state': model.adapter_state(), 'basis': torch.tensor(basis), 'backbone': actual['backbone'],
         'knowledge_sha256': actual['knowledge'], 'normalization': {k:torch.tensor(v) for k,v in norm.items()},
@@ -252,11 +267,15 @@ def worker(cfg, resume=False):
     write_json(dest/'calibration.json', {'alpha': alpha, 'mix': mix.tolist(),
         'fit_rows': fit.tolist(), 'calibration_rows': cal.tolist(), 'outer_rows': outer.tolist(),
         'reference_seen_outer': int(seen[data['pert_idx'][outer]].sum()),
-        'module_mse': float(np.mean((om-data['delta'][outer]@assets['modules'].T)**2)),
+        'module_mse': float(np.mean((om-data['delta'][outer]@model.module_matrix.detach().cpu().numpy().T)**2)),
+        'expression_module_mse':float(np.mean(((op-data['delta'][outer])@assets['modules'].T)**2)),
+        'auxiliary_expression_consistency_mse':float(np.mean((om-op@model.module_matrix.detach().cpu().numpy().T)**2)),
         'selection': 'fixed final optimizer step, no outer early stopping', 'test_evaluated': False})
+    complete_files=['endpoint.pt','predictions.npz','calibration.json']
+    if cfg.get('experiment')=='round9':complete_files.append('gradient_diagnostics.csv')
     write_json(dest/'COMPLETE.json', {'fingerprint': stamp, 'test_evaluated': False,
-        'files': {n:file_sha256(dest/n) for n in ('endpoint.pt','predictions.npz','calibration.json')}})
-    print(f'ROUND8 STUDENT COMPLETE: {dest}', flush=True)
+        'files': {n:file_sha256(dest/n) for n in complete_files}})
+    print(f'{label} STUDENT COMPLETE: {dest}', flush=True)
     return dest
 
 
@@ -267,9 +286,13 @@ def load_checkpoint(path, data, device='cpu'):
         raise ValueError('Round8 checkpoint vocabulary mismatch')
     if file_sha256(cfg['knowledge']) != saved['knowledge_sha256'] or backbone_identity(cfg['model']) != saved['backbone']:
         raise ValueError('Round8 checkpoint dependency changed')
-    model = KnowledgeResponse(data, load_knowledge(cfg['knowledge'], data), cfg['model'], cfg['arm'], saved['basis']).to(device)
-    model.restore(saved['state']); model.eval()
     norm = {k:v.numpy() if v.ndim else float(v) for k,v in saved['normalization'].items()}
+    if cfg.get('experiment')=='round9':
+        from .round9 import BackgroundResponse
+        model=BackgroundResponse(data,load_knowledge(cfg['knowledge'],data),cfg,saved['basis'],norm,load_encoder=False).to(device)
+    else:
+        model = KnowledgeResponse(data, load_knowledge(cfg['knowledge'], data), cfg['model'], cfg['arm'], saved['basis']).to(device)
+    model.restore(saved['state']); model.eval()
     return model, norm
 
 
