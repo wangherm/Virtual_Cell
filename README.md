@@ -283,6 +283,7 @@ source code. The default pipeline uses one device, not distributed training.
 ## Documentation
 
 - [Round 11: source-context calibration, H1 few-shot diagnostic and frozen Jurkat release](docs/ROUND11.md)
+- [Round 12: target representations, split-half diagnostics and controlled training-data expansion](docs/ROUND12.md)
 - [Round 10: grouped backgrounds, new context holdouts and limited warmup](docs/ROUND10.md)
 - [Round 9: full background training, module controls and diagnostics](docs/ROUND9.md)
 - [Public background cleaning, donor splits and audit reports](docs/BACKGROUND_PREPARATION.md)
