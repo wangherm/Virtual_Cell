@@ -15,6 +15,10 @@ predicts mean responses, not single-cell distributions.
 
 ## Background acquisition and inspection
 
+For the latest controlled experiment, see [Round14: local biology and extrapolation](docs/ROUND14.md).
+It reuses completed Round12/13 assets and runs 21 head configurations across three
+protocols and three seeds, with resumable concurrent workers and a lightweight review package.
+
 Start with the [anonymous public-atlas workflow](docs/PUBLIC_BACKGROUND_INSPECT.md):
 Tabula Sapiens tissue subsets, HLCA core and the cross-tissue immune atlas.
 It downloads pinned CELLxGENE H5AD versions without cloud accounts and inspects
