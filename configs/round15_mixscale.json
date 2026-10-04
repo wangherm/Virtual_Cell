@@ -1,0 +1,12 @@
+{
+  "record": "https://zenodo.org/records/14518762",
+  "release": "14518762",
+  "default_file": "Seurat_object_IFNG_Perturb_seq.rds",
+  "reserved_cell_line": "HT29",
+  "reservation": "All sources and stimuli. Metadata/QC only until final candidate freeze; no response analysis or model fitting.",
+  "files": [
+    {"name":"Seurat_object_IFNG_Perturb_seq.rds","bytes":2915636149,"md5":"0fef1f14c36906e9c40e4d1c6aae6926","url":"https://zenodo.org/api/records/14518762/files/Seurat_object_IFNG_Perturb_seq.rds/content"},
+    {"name":"Seurat_object_TGFB_Perturb_seq.rds","bytes":2642041433,"md5":"8e9b4d39a95ec5881a30be6a2df541d1","url":"https://zenodo.org/api/records/14518762/files/Seurat_object_TGFB_Perturb_seq.rds/content"}
+  ],
+  "excluded": ["DE_results_all_pathway.zip", "Pathway_genelist.rds", "Pathway_Exclusive_genelist.rds", "HClust_Pathway_celltype_specific_genelist.rds"]
+}

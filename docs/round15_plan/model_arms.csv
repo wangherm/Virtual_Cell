@@ -1,0 +1,25 @@
+﻿id,arm,family,label_zh,definition,implementation_status
+A01,background_only,control,仅背景,复用有效对照；不要将其解释为扰动特异模型,existing_or_revalidate
+A02,id_background_fixed,control,修复后的背景＋ID,已见ID小非零初始化，未知ID行恒为0；独立随机生成器,requires_fix
+A03,local_additive_noid,reference,局部STRING＋加性，无ID,匹配非线性加性结构,existing_or_revalidate
+A04,local_factor_noid,candidate,局部STRING＋低秩交互，无ID,Round14未知靶点工作候选；默认rank32/width32/tanh,existing_or_revalidate
+A05,local_additive_id,reference,局部STRING＋加性＋ID,已见靶点记忆对照,existing_or_revalidate
+A06,local_factor_id,reference,局部STRING＋交互＋ID,ID与交互2×2对照,existing_or_revalidate
+A07,shuffle1_factor_noid,biological_null,无ID STRING打乱1,覆盖分层、原始profile置换后fit-only PCA；固定置换14801,requires_implementation
+A08,shuffle2_factor_noid,biological_null,无ID STRING打乱2,同上；固定置换14802,requires_implementation
+A09,shuffle3_factor_noid,biological_null,无ID STRING打乱3,同上；固定置换14803,requires_implementation
+A10,gaussian_factor_noid,biological_null,高斯特征，无ID,基因固定随机特征＋真实覆盖flag；维度与预处理匹配,requires_implementation
+A11,coverage_only,biological_null,仅注释可用性＋背景,只保留coverage flag，检验是否只学到可用性差异,requires_implementation
+A12,local_target_only_matched,information,匹配的仅靶点模型,屏蔽背景依赖；保留截距并记录实际参数数量,requires_implementation
+A13,shuffle_target_only_matched,information,打乱的仅靶点模型,与A12配对，不能用不同网络作生物对照,requires_implementation
+A14,ridge_residual,residual,STRING Ridge＋有界残差,基线用训练内折外预测；残差在固定响应空间训练,requires_oof_baseline
+A15,reference_residual,residual,真实参考响应＋背景修正,参考只能来自其他允许的背景/折；缺失参考有显式flag,requires_oof_reference
+A16,neighbor_response_residual,retrieval,邻域响应检索＋小修正,由STRING相似度检索训练靶点真实响应；训练时排除自身靶点,requires_oof_retrieval
+A17,film_small,conditioning,小型FiLM条件化,背景生成有界尺度与偏移调节靶点表示；不声称为新颖性,requires_implementation
+A18,shared_centered_residual,decomposition,共有响应＋靶点特异残差,共有背景响应从fit估计/预测；不得读取外层响应均值,requires_implementation
+A19,no_context_only_output,decomposition,移除纯背景输出项,保留靶点项与交互项，检验背景平均响应捷径,requires_implementation
+A20,amplitude_direction,decomposition,响应幅度与方向分头,幅度非负，方向归一化；加入梯度可学习性测试,requires_implementation
+A21,control_pca_factor,background_control,表达PCA替代B2,PCA仅fit对照；输出与A04相同，直接检验B2必要性,requires_fit_only_pca
+A22,control_moments_factor,background_control,对照均值＋方差摘要,仅真实允许对照细胞集；无法取得细胞方差则标记BLOCKED,requires_control_cells
+A23,factor_response_rank64,capacity,输出rank64,只改响应基底维度；训练内重新拟合，固定width32,requires_implementation
+A24,factor_response_rank16,capacity,输出rank16,只改响应基底维度；不得同时改目标特征维度,requires_implementation

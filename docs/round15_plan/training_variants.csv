@@ -1,0 +1,13 @@
+﻿id,variant,label_zh,parent,definition
+B01,mse_reference,MSE参考,selected_parent,复用精确匹配的父实验
+B02,huber,Huber,selected_parent,固定标准化空间delta=1；原始MSE仍为评价指标
+B03,mse_cosine,MSE＋方向项,selected_parent,lambda=0.05；近零标签不用于角度项，阈值仅fit确定
+B04,mse_target_contrastive,MSE＋靶点辨别,selected_parent,lambda=0.05；同背景/条件内比较；同靶点重复为正例，训练内高度相似响应不作硬负例
+B05,gene_scale_robust,温和基因尺度权重,selected_parent,"仅fit方差估计，权重截断[0.5,2]；不要仅最小化强响应基因"
+B06,measurement_precision,测量精度加权,selected_parent,"组内方差/真实重复估计，权重截断[0.5,2]；n_cells不冒充方差"
+B07,replicate_consistency,对照重采样一致性,selected_parent,同一真实实验对照子集的预测一致性；不跨任务划分共享扰动细胞
+B08,replicate_balanced_sampling,真实重复等权采样,selected_parent,先核对现有row_weights；等价则缓存复用，不制造新实验
+B09,lr_1e4,学习率1e-4,selected_parent,其余与MSE参考一致
+B10,lr_1e3,学习率1e-3,selected_parent,其余与MSE参考一致
+B11,wd_1e3,weight decay 1e-3,selected_parent,其余与MSE参考一致
+B12,wd_1e1,weight decay 1e-1,selected_parent,其余与MSE参考一致

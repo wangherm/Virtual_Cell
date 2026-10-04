@@ -1,0 +1,8 @@
+﻿stage,name,planned_full_fits,activation
+P0,Validity repair,9,mandatory before dependent tests
+P1,24-arm architectural screen,216,core; exact historical equivalents are reused
+P2,12 training modifications on one selected parent,108,one parent nominated from development; one change at a time
+P3,4 finalists x 3 tasks x 3 split layouts x 5 optimizer seeds,180,after candidate freeze; deterministic models deduplicated
+P4,4 data regimes x 3 methods x 3 context folds x 3 seeds,108,after D1 QC and prospective test-v2 lock
+P5,3 native models x 3 tasks x 3 seeds,27,task-compatible and licensing-approved only; native convergence budget
+P6,3 distillation modes x 3 tasks x 3 seeds,27,only if source-OOF teacher adds residual value

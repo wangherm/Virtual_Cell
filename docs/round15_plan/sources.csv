@@ -1,0 +1,14 @@
+﻿id,title,url,note,verified_on
+S1,Round14 user report,evidence/Round14_verified_review.md,Project-specific findings; not a new analysis of raw predictions.,2026-10-04
+S2,Round14 pinned source documentation,https://github.com/wangherm/Virtual_Cell/blob/ea4cd46/docs/ROUND14.md,"3 workers, 2 CPU threads each, GPU described as 96GB RTX PRO6000; current live hardware not measured.",2026-10-04
+S3,Mixscale processed release,https://zenodo.org/records/14518762,Public RDS files and file sizes; processed release fixed to v2.1.,2026-10-04
+S4,Mixscale source series,https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281048,Six-cell-line design; GEO fetch may show CAPTCHA. Author processed release is alternative.,2026-10-04
+S5,McFaline-Figueroa source series,https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE225775,Processed 12.5GB archive; genetic/drug and CRISPR modality differences.,2026-10-04
+S6,Replogle primary paper,https://pmc.ncbi.nlm.nih.gov/articles/PMC9380471/,Genome-scale CRISPRi resource; do not infer additional retained counts without audit.,2026-10-04
+S7,Replogle file manifest,https://plus.figshare.com/articles/dataset/20022944,Author manifest; download allocation must inspect exact file version.,2026-10-04
+S8,State official repository,https://github.com/ArcInstitute/state,Native ST genetic training; noncommercial code/model/output terms require review.,2026-10-04
+S9,TxPert official repository,https://github.com/valence-labs/TxPert,Native graph model; default cache uses different normalization and cell filtering. Do not silently use bundled splits.,2026-10-04
+S10,scLAMBDA official repository,https://github.com/gefeiwang/scLAMBDA,Third optional native perturbation model; verify task support before scheduling each protocol.,2026-10-04
+S11,SLIM author implementation,https://github.com/RasmussenLab/SLIM,"Closed-form structured baseline. Our Delta version is an adaptation, not an exact original-paper replication.",2026-10-04
+S12,FiLM primary paper,https://arxiv.org/abs/1709.07871,"Conditional affine modulation, not itself a novel method contribution.",2026-10-04
+S13,Primary T-cell perturbation paper,https://pubmed.ncbi.nlm.nih.gov/42664972/,"Reserve dataset, not downloaded or guaranteed usable.",2026-10-04

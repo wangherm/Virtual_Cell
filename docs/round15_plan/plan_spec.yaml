@@ -1,0 +1,88 @@
+version: round15-expanded-plan-v1
+created: '2026-10-04'
+status: planning_only_not_a_training_implementation
+repository: wangherm/Virtual_Cell
+last_inspected_reference: ea4cd46
+full_training_slots_upper_bound: 675
+adaptation_slots: 180
+closed_form_slots: 36
+nominal_total_slots: 891
+warning: Upper-bound planning slots, not independent biological replications. Cached,
+  deterministic, incompatible, or stopped branches reduce actual executions. Encoder
+  rebuilds and extra native hyperparameter trials require explicit budget accounting.
+core_protocols:
+- context
+- target
+- double
+seeds:
+- 17
+- 29
+- 43
+confirm_seeds:
+- 17
+- 29
+- 43
+- 59
+- 71
+background: B2 architecture; reuse only after split lineage audit
+response_genes: 1834
+response_rank_default: 32
+small_head:
+  max_steps: 2000
+  batch_size: 128
+  learning_rate: 0.0005
+  weight_decay: 0.01
+  checkpoint_rule: source calibration only
+stages:
+- stage: P0
+  name: Validity repair
+  planned_full_fits: 9
+  activation: mandatory before dependent tests
+- stage: P1
+  name: 24-arm architectural screen
+  planned_full_fits: 216
+  activation: core; exact historical equivalents are reused
+- stage: P2
+  name: 12 training modifications on one selected parent
+  planned_full_fits: 108
+  activation: one parent nominated from development; one change at a time
+- stage: P3
+  name: 4 finalists x 3 tasks x 3 split layouts x 5 optimizer seeds
+  planned_full_fits: 180
+  activation: after candidate freeze; deterministic models deduplicated
+- stage: P4
+  name: 4 data regimes x 3 methods x 3 context folds x 3 seeds
+  planned_full_fits: 108
+  activation: after D1 QC and prospective test-v2 lock
+- stage: P5
+  name: 3 native models x 3 tasks x 3 seeds
+  planned_full_fits: 27
+  activation: task-compatible and licensing-approved only; native convergence budget
+- stage: P6
+  name: 3 distillation modes x 3 tasks x 3 seeds
+  planned_full_fits: 27
+  activation: only if source-OOF teacher adds residual value
+scheduling:
+  existing_supported_concurrency:
+  - 1
+  - 2
+  - 3
+  - 4
+  profile_by: completed_examples_and_jobs_per_wallclock_and_peak_memory
+  cpu_math_threads_per_small_worker: 2
+  heavy_model_gpu_workers_initial: 1
+  initial_gpu_memory_fraction_target: 0.75
+  hard_runtime_actions: no automatic deletes, no run-time git pulls, no silent hyperparameter
+    mutation
+locked_test:
+  name: external_test_v2
+  default_candidate: HT29 from D1
+  status: must_reserve_by_metadata_before_response_analysis
+  fallback: if prespecified QC/overlap criteria fail, record reason before any outcome
+    inspection and freeze another eligible complete cell line
+  exclude_from: training labels, encoder fitting, normalization fitting, basis fitting,
+    source graph inferred from expressions, retrieval library, gates, hyperparameter
+    and model selection
+  controls: permitted only as frozen inference inputs; otherwise label transductive
+    adaptation separately
+artifacts: all planned fields require adapter binding before execution

@@ -15,9 +15,12 @@ predicts mean responses, not single-cell distributions.
 
 ## Background acquisition and inspection
 
-For the latest controlled experiment, see [Round14: local biology and extrapolation](docs/ROUND14.md).
-It reuses completed Round12/13 assets and runs 21 head configurations across three
-protocols and three seeds, with resumable concurrent workers and a lightweight review package.
+For the latest executable stage, see [Round15: architecture/training screen and Mixscale inspection](docs/ROUND15.md).
+It audits and reuses completed Round12–14 assets, repairs the ID-only control,
+adds matched knowledge controls and response-reference models, and inspects one
+public perturbation dataset in parallel. The broader Round15 confirmation, native
+model and data-expansion stages remain explicitly gated. [Round14](docs/ROUND14.md)
+documents the preceding 21-head screen.
 
 Start with the [anonymous public-atlas workflow](docs/PUBLIC_BACKGROUND_INSPECT.md):
 Tabula Sapiens tissue subsets, HLCA core and the cross-tissue immune atlas.

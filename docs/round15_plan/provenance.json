@@ -1,0 +1,14 @@
+{
+  "source": "User-provided Round15_Expanded_Experiment_Plan.zip",
+  "archive_sha256": "df66f0a8408266d81e7b26a549aa5c0484c00a3dca824e2ffe97eee155a41ebf",
+  "files": {
+    "Round15_Expanded_Plan_zh.md": "6082b3dfd629210a85c770753f8b0154c2feff423e5bcd46b295be7d961987ff",
+    "model_arms.csv": "95b0d01a776a4f0298e70ada63750fba135262060c12697603bfeb5e9c90b194",
+    "training_variants.csv": "e34e499c419a089166d0d9f28934a813040db927a8bd77e1cbaf6c53f359af62",
+    "dataset_registry.csv": "4705edf3f9dbc233f5ab0fbad192a3c262bad726ed1497ca2ede6a4cf0da1485",
+    "plan_spec.yaml": "7791436201d349b928012400bfc7f524e865967a65c41cb3f1662b242d3f12af",
+    "stage_budget.csv": "90535dbeac213702289af213464fc3dda386a99d1d38bcf83f928fca9b88c13c",
+    "sources.csv": "a6d164853cd8b045bd770ee692149223eaf6a313d67611308b7316a77ad974b2"
+  },
+  "status": "Reference proposal only; executable scope and deviations are in docs/ROUND15.md. No supplied scripts were executed."
+}

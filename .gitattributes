@@ -9,3 +9,5 @@
 licenses/** -whitespace
 # Annotation snapshot checksums refer to the original downloaded bytes.
 assets/function/*.gmt -text -whitespace
+# User-supplied experiment-plan snapshots retain bytes referenced by provenance.json.
+docs/round15_plan/** -text -whitespace
