@@ -15,6 +15,7 @@ import pytest
 from test_round12 import dataset
 from vcell.data import load_prepared
 from vcell.round15_adapter import metadata_plan, prepare_extension, report, package, POLICY
+from vcell.round15_gene_mapping import collect_annotations, resolve_panel
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -43,6 +44,50 @@ def test_metadata_alias_reservation_and_no_score(tmp_path):
     assert (tmp_path/'panel.txt').read_text().splitlines()==['G1','G0']
     m.loc[0,'sample']='MCF7_IFNG'
     with pytest.raises(ValueError,match='sample/cell_type'):metadata_plan(m,['G0'],['G0'],tmp_path)
+
+
+def test_namespace_translation_preserves_original_output_ids_and_order(tmp_path):
+    annotation={'records':[{'gene_id':'ENSG000001.3','symbol':'G0','source':'training var'},
+                           {'gene_id':'ENSG000002','symbol':'G1','source':'training var'}]}
+    panel=['ENSG000002','ENSG000001']
+    audit=metadata_plan(metadata(),['G0','G1','G2'],panel,tmp_path,annotation)
+    assert audit['direct_id_matches']==0 and audit['mapped_output_genes']==2
+    assert (tmp_path/'panel.txt').read_text().splitlines()==panel
+    assert (tmp_path/'source_panel.txt').read_text().splitlines()==['G1','G0']
+
+
+def test_mapping_missing_ambiguous_and_collisions_are_explicit():
+    ann={'records':[{'gene_id':g,'symbol':s,'source':'fixture'} for g,s in [
+        ('ENSG1','A'),('ENSG1','B'),('ENSG2','C'),('ENSG3','C'),('ENSG4','absent')]]}
+    frame=resolve_panel(['A','B','C'],['ENSG1','ENSG2','ENSG3','ENSG4','ENSG5'],ann)
+    assert frame.status.tolist()==['ambiguous_mapping','many_panel_ids_to_one_source','many_panel_ids_to_one_source','not_measured','no_annotation']
+    assert not frame.measured.any()
+    # An unmeasured historical alias cannot displace the sole measured annotated symbol.
+    ann['records'].append({'gene_id':'ENSG4','symbol':'A','source':'old var'})
+    assert resolve_panel(['A','C'],['ENSG4'],ann).source_gene.tolist()==['A']
+
+
+def test_collects_only_training_var_and_cached_annotation(tmp_path):
+    import h5py
+    from vcell.utils import write_json
+    raw=tmp_path/'raw';raw.mkdir()
+    for line in ('K562','RPE1','HT29'):
+        with h5py.File(raw/(line+'.h5ad'),'w') as f:
+            # No X or obs at all: collecting annotations must not touch cell expression.
+            v=f.create_group('var');v.attrs['_index']='_index'
+            v.create_dataset('_index',data=np.array(['ENSG1.2','ENSG2'],dtype='S'))
+            v.create_dataset('gene_name',data=np.array(['G0','G1'],dtype='S'))
+    entries=[{'id':line,'context':line,'path':str(raw/(line+'.h5ad'))} for line in ('K562','RPE1','HT29')]
+    write_json(tmp_path/'prepared/real_min10_01/data_audit.json',{'manifest':{'datasets':entries}})
+    write_json(tmp_path/'knowledge/round12/cards.json',{'ENSG2':{'status':'mapped','symbol':'G1'},'ENSG3':{'status':'ambiguous','symbol':'wrong'}})
+    annotation=collect_annotations(tmp_path,['ENSG1','ENSG2','ENSG3'])
+    assert len(annotation['sources'])==3
+    assert not any('HT29' in r['source'] for r in annotation['records'])
+    resolved=resolve_panel(['G0','G1'],['ENSG2','ENSG1'],annotation)
+    assert resolved.source_gene.tolist()==['G1','G0'] and resolved.measured.all()
+    supplied=tmp_path/'explicit.csv';supplied.write_text('panel_gene,source_gene\nENSG1,G0\n')
+    explicit=collect_annotations(tmp_path,['ENSG1'],supplied)
+    assert len(explicit['sources'])==1 and explicit['sources'][0]['kind']=='explicit CSV'
 
 
 @pytest.mark.parametrize('change,match',[
@@ -109,7 +154,8 @@ def test_review_archive_hashes_and_exclusions(tmp_path):
         for name,sha in manifest['files'].items():assert hashlib.sha256(t.extractfile(name).read()).hexdigest()==sha
 
 
-def test_r_sparse_matched_controls_full_library_and_ht29_exclusion(tmp_path):
+@pytest.mark.parametrize('ensembl_panel',[False,True])
+def test_r_sparse_matched_controls_full_library_and_ht29_exclusion(tmp_path,ensembl_panel):
     r=shutil.which('Rscript')
     if not r:
         if os.getenv('VCELL_REQUIRE_R_TEST')=='1':pytest.fail('CI requires R integration')
@@ -144,11 +190,14 @@ obj<-CreateSeuratObject(counts=Matrix(x,sparse=TRUE),meta.data=m,min.cells=0,min
 saveRDS(obj,file.path(args[1],"input.rds"))
 ''')
     subprocess.run([r,str(build),str(tmp_path)],check=True)
-    mapping=tmp_path/'mapping';metadata_plan(m,['G0','G1','G2'],['G1','G0'],mapping)
+    panel=['ENSG2','ENSG1'] if ensembl_panel else ['G1','G0']
+    ann={'records':[{'gene_id':g,'symbol':s,'source':'training var'} for g,s in [('ENSG1','G0'),('ENSG2','G1')]]}
+    mapping=tmp_path/'mapping';metadata_plan(m,['G0','G1','G2'],panel,mapping,ann)
     out=tmp_path/'agg'
     subprocess.run([r,str(REPO/'scripts/aggregate_round15_mixscale.R'),str(tmp_path/'input.rds'),str(mapping),str(out),'2','3'],check=True)
     groups=pd.read_csv(mapping/'groups.csv');qc=pd.read_csv(out/'group_qc.csv')
     means=pd.read_csv(out/'mean.csv.gz').iloc[:,1:].to_numpy();bases=pd.read_csv(out/'baseline.csv.gz').iloc[:,1:].to_numpy()
+    assert pd.read_csv(out/'mean.csv.gz',nrows=0).columns.tolist()==['group_id']+panel
     expected=.4*np.log1p(np.array([2,4])*10000/20)+.6*np.log1p(np.array([1,5])*10000/10)
     base=.4*np.log1p(np.array([2,1])*10000/10)+.6*np.log1p(np.array([1,3])*10000/20)
     for i in np.flatnonzero(groups.gene.eq('P0')):
@@ -160,13 +209,15 @@ saveRDS(obj,file.path(args[1],"input.rds"))
     assert not pd.read_csv(out/'control_qc.csv').cell_type.eq('HT29').any()
 
 
-def test_launcher_resume_reuses_complete_export_and_rejects_changed_policy(tmp_path,monkeypatch):
+@pytest.mark.parametrize('translated',[False,True])
+def test_launcher_resume_reuses_complete_export_and_rejects_changed_policy(tmp_path,monkeypatch,translated):
     sys.path.insert(0,str(REPO/'scripts'))
     import adapt_round15_mixscale as runner
     old=dataset(tmp_path/'old');source=tmp_path/'raw';source.mkdir()
     raw=source/'Seurat_object_IFNG_Perturb_seq.rds';raw.write_bytes(b'fixture')
     metadata().to_csv(source/'metadata.csv.gz',index=False)
-    (source/'RNA_counts_genes.txt').write_text('\n'.join(old['genes'])+'\n')
+    source_genes=['symbol_'+g for g in old['genes']] if translated else old['genes']
+    (source/'RNA_counts_genes.txt').write_text('\n'.join(source_genes)+'\n')
     sha=hashlib.sha256(raw.read_bytes()).hexdigest()
     (source/'INSPECT_STATUS.json').write_text(json.dumps({'state':'METADATA_INSPECTED','sha256':sha}))
     r=tmp_path/'Rscript';r.write_text('fake test runtime')
@@ -191,12 +242,19 @@ def test_launcher_resume_reuses_complete_export_and_rejects_changed_policy(tmp_p
     monkeypatch.setattr(runner.subprocess,'run',export)
     args=['--work-dir',str(tmp_path),'--input-dir',str(source),'--reference-data',str(tmp_path/'old'),
           '--original-data',str(tmp_path/'old'),'--rscript',str(r)]
+    if translated:
+        annotation=tmp_path/'gene_map.csv'
+        pd.DataFrame({'panel_gene':old['genes'],'source_gene':source_genes}).to_csv(annotation,index=False)
+        args+=['--gene-map',str(annotation)]
     root=runner.main(args);assert len(calls)==1
     before=(root/'COMPLETE.json').read_bytes()
     runner.main(args);assert len(calls)==1
     assert (root/'COMPLETE.json').read_bytes()==before
     with pytest.raises(ValueError,match='Frozen artifact changed'):runner.main(args+['--min-controls','11'])
     assert json.loads((root/'ADAPTER_STATUS.json').read_text())['state']=='ADAPTER_READY'
+    if translated:
+        assert (root/'mapping/source_panel.txt').read_text().splitlines()==list(source_genes)
+        assert (root/'mapping/panel.txt').read_text().splitlines()==old['genes'].tolist()
 
 
 @pytest.mark.skipif(sys.platform=='win32',reason='Linux shell')

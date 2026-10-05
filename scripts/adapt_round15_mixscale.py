@@ -12,6 +12,7 @@ from vcell.clean_background import run_lock
 from vcell.data import load_prepared
 from vcell.round11 import freeze, verify_files
 from vcell.round15_adapter import POLICY, metadata_plan, prepare_extension, report, package
+from vcell.round15_gene_mapping import collect_annotations
 from vcell.utils import file_sha256, write_json
 from round15_data import digest
 
@@ -64,11 +65,16 @@ def launch(a):
         if raw.stat().st_size!=record['bytes'] or digest(raw)!=record['md5']: raise ValueError('Pinned RDS checksum mismatch')
         if file_sha256(raw)!=status['sha256']: raise ValueError('RDS differs from inspected source')
         policy = {k:getattr(a,k) for k in POLICY}
+        source_genes=genes.read_text().splitlines()
+        annotations=(collect_annotations(work,reference['genes'],a.gene_map)
+                     if a.gene_map or not set(reference['genes'])<=set(source_genes)
+                     else {'records':[],'sources':[],'warnings':[]})
         identity = {'source_sha256':status['sha256'], 'metadata_sha256':file_sha256(metadata), 'genes_sha256':file_sha256(genes),
                     'reference':reference['audit']['fingerprint'], 'reference_metadata':file_sha256(reference_path/'metadata.csv'),
                     'original':original['audit']['fingerprint'], 'original_metadata':file_sha256(oldpath/'metadata.csv'),
                     'policy':policy, 'chunk_cells':a.chunk_cells,
-                    'code':{n:file_sha256(REPO/n) for n in ('scripts/adapt_round15_mixscale.py','scripts/aggregate_round15_mixscale.R','src/vcell/round15_adapter.py')},
+                    'gene_annotations':annotations,
+                    'code':{n:file_sha256(REPO/n) for n in ('scripts/adapt_round15_mixscale.py','scripts/aggregate_round15_mixscale.R','src/vcell/round15_adapter.py','src/vcell/round15_gene_mapping.py')},
                     'HT29':'reserved across all sources and stimuli; no expression export or evaluation'}
         freeze(root/'plan.json', identity)
         if (root/'COMPLETE.json').exists():
@@ -77,7 +83,9 @@ def launch(a):
         write_json(root/'test_v2_reservation.json', {'cell_line':'HT29','all_sources':True,'all_stimuli':True,'test_evaluated':False})
         print('MIXSCALE ADAPT: metadata mapping and frozen panel coverage',flush=True)
         mapping=root/'mapping'
-        metadata_plan(pd.read_csv(metadata,dtype=str,keep_default_na=False),genes.read_text().splitlines(),reference['genes'],mapping)
+        write_json(root/'gene_annotation_sources.json',annotations)
+        metadata_audit=metadata_plan(pd.read_csv(metadata,dtype=str,keep_default_na=False),source_genes,reference['genes'],mapping,annotations)
+        print(f'MIXSCALE PANEL VERIFIED: {metadata_audit["mapped_output_genes"]}/{metadata_audit["panel_genes"]}; original IDs/order preserved',flush=True)
         aggregation=root/'aggregation'; aggregation.mkdir(exist_ok=True)
         if (aggregation/'COMPLETE.json').exists():
             verify_files(aggregation)
@@ -124,6 +132,7 @@ def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--work-dir',default='/root/autodl-tmp/vcell-work');p.add_argument('--name',default='round15_mixscale_ifng_01')
     p.add_argument('--input-dir');p.add_argument('--reference-data');p.add_argument('--original-data');p.add_argument('--rscript')
+    p.add_argument('--gene-map',help='Optional explicit CSV with panel_gene and source_gene; otherwise use local training annotations')
     p.add_argument('--chunk-cells',type=int,default=2048)
     for name,value in POLICY.items(): p.add_argument('--'+name.replace('_','-'),type=int,default=value)
     a=p.parse_args(argv)

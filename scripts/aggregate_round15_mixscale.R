@@ -15,6 +15,8 @@ progress <- function(stage,done,total) {
 }
 cells <- read.csv(gzfile(file.path(mapping,'cells.csv.gz')),colClasses='character',check.names=FALSE)
 genes <- readLines(file.path(mapping,'panel.txt'))
+source_genes <- readLines(file.path(mapping,'source_panel.txt'))
+if (length(source_genes)!=length(genes) || anyDuplicated(source_genes) || any(!nzchar(source_genes))) stop('Invalid one-to-one output mapping')
 groups <- read.csv(file.path(mapping,'groups.csv'),check.names=FALSE)
 strata <- read.csv(file.path(mapping,'strata.csv'),colClasses='character',check.names=FALSE)
 if (any(cells$cell_type=='HT29') || anyDuplicated(cells$cell_id)) stop('Reserved/duplicate cells in manifest')
@@ -33,7 +35,7 @@ if (inherits(assay,'Assay5')) {
 } else counts <- methods::slot(assay,'counts')
 if (!inherits(counts,'sparseMatrix')) stop('Refusing dense counts')
 if (anyDuplicated(rownames(counts)) || anyDuplicated(colnames(counts))) stop('Duplicate matrix identifiers')
-cols <- match(cells$cell_id,colnames(counts)); gi <- match(genes,rownames(counts))
+cols <- match(cells$cell_id,colnames(counts)); gi <- match(source_genes,rownames(counts))
 if (anyNA(cols) || anyNA(gi)) stop('Missing cells or panel genes')
 s <- as.integer(cells$stratum_id); g <- as.integer(cells$group_id)
 control <- cells$is_control=='1'; ns <- nrow(strata); ng <- nrow(groups); p <- length(genes)

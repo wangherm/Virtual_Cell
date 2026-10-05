@@ -61,6 +61,16 @@ No environment installation is attempted. `VCELL_WORK` overrides the work root.
 - A target absent from the measured genes is reported and can retain its target
   identity; its own expression knockdown cannot be checked. Missing **output**
   genes block preparation: no zero filling or silent panel reduction.
+- Output identifiers need not use the same namespace as the new matrix. Exact
+  identifiers are preferred. Otherwise, the adapter reads ID/symbol annotation
+  pairs from the historical K562/RPE1 H5AD `var` tables and existing
+  `knowledge/round12/cards.json`. No expression/obs or online lookup is used.
+  Ensembl version suffixes are normalized for joining only. A unique measured
+  annotated symbol is required, and two panel IDs cannot share one source row.
+  `mapping/gene_mapping.csv` records evidence, candidates, selected source and
+  unresolved/ambiguous status. Original output IDs and order remain unchanged;
+  only the source row lookup is translated. An explicit `--gene-map mapping.csv`
+  (columns `panel_gene,source_gene`) overrides automatic annotation collection.
 - `mixscale_score`, published DE genes and normalized Seurat layers are never
   predictor features, weights, target selection criteria or supervision inputs.
 
@@ -111,3 +121,23 @@ VCELL_REQUIRE_R_TEST=1 .venv/bin/python -m pytest tests/test_round15_adapter.py 
 
 Without that R runtime the integration test is explicitly skipped; Python tests
 alone do not validate the server's real RDS or its matching-stratum coverage.
+
+## Recovery from all 1,834 output genes reported missing
+
+The initial adapter compared frozen Ensembl identifiers directly to Mixscale gene
+symbols. That namespace mismatch stopped before expression aggregation; it is
+not evidence that all 1,834 biological genes are absent. Pull the mapping repair
+and use a **new** name because code and annotation identity are frozen:
+
+```bash
+cd /root/autodl-tmp/virtual_cell && \
+git -c http.version=HTTP/1.1 pull --ff-only && \
+screen -dmS vcell15adapt2 bash scripts/adapt_round15_autodl.sh --name round15_mixscale_ifng_02
+```
+
+The existing RDS and R environment are reused. Successful alignment prints
+`MIXSCALE PANEL VERIFIED: 1834/1834; original IDs/order preserved`. If annotation
+is missing, mapping is ambiguous, or genes are genuinely absent, preparation still
+stops and packages the detailed mapping report. Do not remove the coverage check.
+Return `prepared/round15_mixscale_ifng_02/round15_D1_adapter_review.tar.gz` in that
+case; no re-download or training restart is required to inspect the remaining issues.

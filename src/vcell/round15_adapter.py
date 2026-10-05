@@ -15,6 +15,7 @@ import pandas as pd
 
 from .data import save_prepared
 from .round12 import make_partition
+from .round15_gene_mapping import resolve_panel
 from .utils import file_sha256, write_json
 
 LINES = ('A549', 'BXPC3', 'HAP1', 'K562', 'MCF7', 'HT29')
@@ -28,7 +29,7 @@ def key(values):
     return json.dumps(list(map(str, values)), separators=(',', ':'))
 
 
-def metadata_plan(metadata, source_genes, panel, output):
+def metadata_plan(metadata, source_genes, panel, output, annotations=None):
     """Validate every mapping against actual rows, including metadata-only HT29."""
     output = Path(output); output.mkdir(parents=True, exist_ok=True)
     missing = set(FIELDS) - set(metadata)
@@ -57,24 +58,29 @@ def metadata_plan(metadata, source_genes, panel, output):
         raise ValueError('Duplicate gene identifiers')
     if not panel or any(not str(g).strip() for g in source_genes + panel):
         raise ValueError('Empty gene identifiers/panel')
-    pd.DataFrame({'gene': panel, 'measured': [g in source_set for g in panel]}).to_csv(output/'panel_coverage.csv', index=False)
+    mapping = resolve_panel(source_genes,panel,annotations)
+    mapping.to_csv(output/'gene_mapping.csv',index=False)
+    mapping.to_csv(output/'panel_coverage.csv',index=False)
+    mapped_symbols=set(mapping.loc[mapping.measured,'source_gene'])
     targets = sorted(set(m.gene) - {'NT'})
     pd.DataFrame({'target': targets, 'measured': [g in source_set for g in targets],
-                  'in_output_panel': [g in panel_set for g in targets]}).to_csv(output/'target_coverage.csv', index=False)
+                  'in_output_panel': [g in panel_set or g in mapped_symbols for g in targets]}).to_csv(output/'target_coverage.csv', index=False)
     m.groupby(['sample', 'cell_type', 'Batch_info'], dropna=False).size().rename('n_cells').reset_index().to_csv(output/'sample_mapping.csv', index=False)
     m.groupby(['cell_type', 'pathway', 'Batch_info', 'gene', 'guide']).size().rename('n_cells').reset_index().to_csv(output/'cell_counts.csv', index=False)
     m.groupby(MATCH).agg(n_cells=('cell_id', 'size'), n_targets=('gene', 'nunique')).reset_index().to_csv(output/'technical_strata.csv', index=False)
-    missing_panel = sorted(set(panel) - set(source_genes))
+    missing_panel = mapping.loc[~mapping.measured,'gene'].tolist()
     audit = {'cells_total': len(m), 'reserved_HT29_cells': int(m.cell_type.eq('HT29').sum()),
              'development_cells': int(m.cell_type.ne('HT29').sum()), 'panel_genes': len(panel),
              'missing_panel_genes': missing_panel, 'missing_target_genes': sorted(set(targets)-set(source_genes)),
+             'direct_id_matches':int(mapping.status.eq('exact_id').sum()),
+             'mapped_output_genes':int(mapping.measured.sum()), 'mapping_status':mapping.status.value_counts().to_dict(),
              'alias_cells': int(m['sample'].eq('BXCP3_IFNG').sum()), 'match_fields': MATCH,
              'excluded_response_fields': ['mixscale_score', 'author DE lists', 'Seurat normalized data'],
              'test_evaluated': False, 'response_analysis_HT29': False}
     write_json(output/'metadata_audit.json', audit)
     # A target absent from counts can remain a perturbation identity. Output genes cannot.
     if missing_panel:
-        raise ValueError(f'Missing {len(missing_panel)} frozen output genes; no silent zero fill or panel change')
+        raise ValueError(f'Missing {len(missing_panel)} frozen output genes after ID mapping; inspect mapping/gene_mapping.csv; no silent zero fill or panel change')
     dev = m.loc[m.cell_type.ne('HT29')].copy()
     if dev.empty or not dev.gene.eq('NT').any():
         raise ValueError('No development cells or NT controls')
@@ -90,6 +96,7 @@ def metadata_plan(metadata, source_genes, panel, output):
     dev.drop_duplicates('group_id')[['group_id','cell_type','Batch_info','gene','guide']].sort_values('group_id').to_csv(output/'groups.csv', index=False)
     dev.drop_duplicates('stratum_id')[['stratum_id'] + MATCH].sort_values('stratum_id').to_csv(output/'strata.csv', index=False)
     (output/'panel.txt').write_text('\n'.join(panel)+'\n', encoding='utf-8')
+    (output/'source_panel.txt').write_text('\n'.join(mapping.source_gene)+'\n',encoding='utf-8')
     return audit
 
 
@@ -208,7 +215,7 @@ def report(root, status):
     for relative in ('mapping/metadata_audit.json','prepared/data_audit.json','training_handoff.json'):
         p = root/relative
         if p.exists(): sections.append('<h2>'+html.escape(relative)+'</h2><pre>'+html.escape(p.read_text())+'</pre>')
-    for relative in ('mapping/sample_mapping.csv','mapping/panel_coverage.csv','mapping/target_coverage.csv',
+    for relative in ('mapping/sample_mapping.csv','mapping/gene_mapping.csv','mapping/panel_coverage.csv','mapping/target_coverage.csv',
                      'prepared/context_summary.csv','prepared/target_overlap.csv','prepared/target_qc.csv','aggregation/control_qc.csv'):
         p = root/relative
         if p.exists():
