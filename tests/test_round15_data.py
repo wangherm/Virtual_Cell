@@ -15,7 +15,7 @@ import round15_data as data
 @pytest.mark.skipif(sys.platform=='win32',reason='Server shell syntax is checked on Linux CI')
 def test_server_shell_syntax():
     repo=Path(__file__).resolve().parents[1]
-    subprocess.run(['bash','-n',str(repo/'scripts/run_round15_autodl.sh'),str(repo/'scripts/run_round15_mixscale.sh')],check=True)
+    subprocess.run(['bash','-n',str(repo/'scripts/run_round15_autodl.sh'),str(repo/'scripts/run_round15_mixscale.sh'),str(repo/'scripts/resume_round15_inspect.sh')],check=True)
 
 
 def test_interrupted_download_range_and_corrupt_file(tmp_path,monkeypatch):

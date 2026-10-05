@@ -156,7 +156,11 @@ zero overlap with older model pretraining or that HT29 will meet QC criteria.
 
 The data worker creates a dedicated `vcell-work/envs/round15-r` environment with
 R, SeuratObject, Matrix and jsonlite if Conda is available. It does not alter the
-Python training environment. Network/runtime failure is recorded separately.
+Python training environment. Setup now uses the explicit Tsinghua conda-forge
+mirror with `--override-channels`, so user-configured `defaults` and overseas
+channels are not added. `VCELL_CONDA_CHANNEL` can specify another explicit HTTPS
+channel. Package caches and temporary files use the data disk. Required R packages
+are probed before inspection. Network/runtime failure is recorded separately.
 Sparse matrices remain sparse; the inspector refuses a dense counts layer.
 The input is a multi-GB serialized R object and must be read into RAM: a conservative
 memory check runs first, but actual peak usage depends on the object. No valid
@@ -185,3 +189,35 @@ review archive. `CORE_COMPLETE.json` means the available core screen finished;
 No training-time or performance improvement is promised before the measured run.
 `resources.json` records each head's wall time, examples, parameter count and peak
 allocated GPU memory. Concurrent worker wall times must not be summed as GPU hours.
+
+## Recover the completed run's D1 inspection only
+
+The first run can have `CORE_COMPLETE.json` with D1 `BLOCKED_R_RUNTIME`: training
+finished, but R installation failed. Do not rerun training to fix this. Once no
+Round15 process is running, pull the repair and launch the dedicated command:
+
+```bash
+cd /root/autodl-tmp/virtual_cell && \
+git -c http.version=HTTP/1.1 pull --ff-only && \
+screen -dmS vcell15data bash scripts/resume_round15_inspect.sh
+```
+
+```bash
+tail -n 40 -f "$(ls -t /root/autodl-tmp/vcell-work/logs/round15_D1_recovery_*.log | head -n 1)"
+```
+
+The repair reuses a validated R environment, installs missing packages into an
+existing dedicated Conda environment, or creates a fresh recovery prefix when an
+earlier directory is incomplete and unrecognized. It does not delete that directory,
+change global `.condarc`, or modify the Python training environment. A verified RDS
+is reused without network download. A blocked recovery exits nonzero and records
+the reason; it cannot look like a successful inspection.
+
+Return `raw/round15_D1/IFNG/round15_D1_inspect_review.tar.gz`. Successful inspection
+reports `METADATA_INSPECTED`; `training_ready` remains false until explicit field
+and matched-control validation. This separate package contains metadata summaries,
+not expression matrices or per-cell metadata. The completed training run and its
+original hashes remain unchanged.
+
+Channel references: [Tsinghua mirror documentation](https://mirrors.tuna.tsinghua.edu.cn/help/anaconda/),
+[Conda channel selection](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-channels.html).
