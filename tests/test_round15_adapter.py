@@ -125,7 +125,7 @@ def test_r_sparse_matched_controls_full_library_and_ht29_exclusion(tmp_path):
             for gene in ('NT','P0'):
                 if stratum=='without_control' and gene=='NT':continue
                 for guide in (1,2):
-                    for _ in range(2):
+                    for _ in range(3 if stratum=='b' and gene=='P0' else 2):
                         rows.append(dict(cell_id='c'+str(len(rows)),cell_type=line,sample=line+'_IFNG',pathway='IFNG',
                                          Batch_info='Rep1',**{'orig.ident':stratum},sample_ID='sample_1',gene=gene,guide=f'{gene}g{guide}'))
                         value=[1,2,7] if gene=='NT' else [4,2,14]
@@ -149,11 +149,11 @@ saveRDS(obj,file.path(args[1],"input.rds"))
     subprocess.run([r,str(REPO/'scripts/aggregate_round15_mixscale.R'),str(tmp_path/'input.rds'),str(mapping),str(out),'2','3'],check=True)
     groups=pd.read_csv(mapping/'groups.csv');qc=pd.read_csv(out/'group_qc.csv')
     means=pd.read_csv(out/'mean.csv.gz').iloc[:,1:].to_numpy();bases=pd.read_csv(out/'baseline.csv.gz').iloc[:,1:].to_numpy()
-    expected=np.mean([np.log1p(np.array([2,4])*10000/20),np.log1p(np.array([1,5])*10000/10)],axis=0)
-    base=np.mean([np.log1p(np.array([2,1])*10000/10),np.log1p(np.array([1,3])*10000/20)],axis=0)
+    expected=.4*np.log1p(np.array([2,4])*10000/20)+.6*np.log1p(np.array([1,5])*10000/10)
+    base=.4*np.log1p(np.array([2,1])*10000/10)+.6*np.log1p(np.array([1,3])*10000/20)
     for i in np.flatnonzero(groups.gene.eq('P0')):
-        assert qc.iloc[i].n_input==(7 if groups.iloc[i].guide=='P0g1' else 6)
-        assert qc.iloc[i].n_positive==6 and qc.iloc[i].n_matched==4
+        assert qc.iloc[i].n_input==(8 if groups.iloc[i].guide=='P0g1' else 7)
+        assert qc.iloc[i].n_positive==7 and qc.iloc[i].n_matched==5
         np.testing.assert_allclose(means[i],expected,rtol=1e-12)
         np.testing.assert_allclose(bases[i],base,rtol=1e-12)
     assert not groups.cell_type.eq('HT29').any()
