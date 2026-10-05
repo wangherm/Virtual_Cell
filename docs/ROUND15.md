@@ -141,6 +141,12 @@ gets `BLOCKED.json`, never a successful `COMPLETE.json` or fabricated score.
 
 ## D1: Mixscale inspection, not automatic training ingestion
 
+Successful inspection can now be followed by the standalone
+[Mixscale adaptation report](MIXSCALE_ADAPTER.md). It prepares all QC-eligible
+development cells with exact technical-stratum NT matching, preserves HT29,
+and writes a checked data/partition handoff. The original core-screen command
+still does not automatically ingest these data or execute P4 training.
+
 The initial public source is the author's [Zenodo record 14518762](https://zenodo.org/records/14518762),
 linked to [GSE225775](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE225775).
 The registry pins filenames, sizes and author-provided MD5 checksums. IFNG is

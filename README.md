@@ -16,6 +16,7 @@ predicts mean responses, not single-cell distributions.
 ## Background acquisition and inspection
 
 For the latest executable stage, see [Round15: architecture/training screen and Mixscale inspection](docs/ROUND15.md).
+After successful IFNG inspection, run the [Mixscale adaptation report and full development-data preparation](docs/MIXSCALE_ADAPTER.md).
 It audits and reuses completed Round12–14 assets, repairs the ID-only control,
 adds matched knowledge controls and response-reference models, and inspects one
 public perturbation dataset in parallel. The broader Round15 confirmation, native
