@@ -5,15 +5,47 @@ from pathlib import Path
 import re
 
 import h5py
+import numpy as np
 import pandas as pd
 
-from .background_inspect import column
+from .background_inspect import decode
 from .utils import file_sha256
 
 
 def stable_id(value):
     value = str(value)
     return value.split('.')[0] if re.fullmatch(r'ENSG[0-9]+\.[0-9]+', value) else value
+
+
+def annotation_column(group, key):
+    """Decode modern and legacy H5AD annotations without treating codes as names.
+
+    Legacy AnnData stores integer columns beside a __categories/<key> label
+    table. Modern categorical columns contain their own codes/categories.
+    Numeric annotations without a label table are not usable gene identifiers.
+    """
+    node = group[key]
+    if isinstance(node, h5py.Dataset):
+        if '__categories' in group and key in group['__categories']:
+            codes = node[:]
+            labels = group['__categories'][key][:]
+            encoding = 'legacy categorical (__categories)'
+        else:
+            values = node[:]
+            if values.ndim != 1 or values.dtype.kind in 'biufc':
+                raise ValueError(f'Invalid gene annotation {key}: numeric or non-vector values without categorical labels')
+            return decode(values), 'string array'
+    elif 'codes' in node and 'categories' in node:
+        codes = node['codes'][:]
+        labels = node['categories'][:]
+        encoding = 'categorical (codes/categories)'
+    else:
+        raise ValueError(f'Unsupported gene annotation encoding: {key}')
+    if (codes.ndim != 1 or labels.ndim != 1 or codes.dtype.kind not in 'iu'
+            or np.any(codes < -1) or np.any(codes >= len(labels))):
+        raise ValueError(f'Invalid categorical codes in gene annotation {key}')
+    labels = decode(labels)
+    return np.array([labels[int(c)] if c >= 0 else '<missing>' for c in codes]), encoding
 
 
 def collect_annotations(work, panel, explicit=None):
@@ -53,13 +85,15 @@ def collect_annotations(work, panel, explicit=None):
                 sym = next((k for k in ('gene_name','gene_symbols','feature_name','gene_symbol','symbol') if k in var),None)
                 if sym is None:
                     warnings.append(f'No symbol annotation in {path.name}/var');continue
-                ids, symbols = column(var,idx), column(var,sym)
+                ids, id_encoding = annotation_column(var,idx)
+                symbols, symbol_encoding = annotation_column(var,sym)
                 if len(ids)!=len(symbols): raise ValueError('Annotation axes disagree')
                 # Record the whole ID-symbol table's digest without reading count matrices.
                 pairs = list(zip(map(str,ids),map(str,symbols)))
                 sha = hashlib.sha256(json.dumps(pairs,separators=(',',':')).encode()).hexdigest()
                 source = str(path.resolve())+'/var/'+sym
-                sources.append({'kind':'training H5AD var only','path':str(path.resolve()),'id_field':idx,'symbol_field':sym,'annotation_sha256':sha})
+                sources.append({'kind':'training H5AD var only','path':str(path.resolve()),'id_field':idx,'symbol_field':sym,
+                                'id_encoding':id_encoding,'symbol_encoding':symbol_encoding,'annotation_sha256':sha})
                 for gene,symbol in pairs:
                     if stable_id(gene) in needed and symbol.strip() not in ('','<missing>','nan','None'):
                         records.append({'gene_id':gene,'symbol':symbol,'source':source})

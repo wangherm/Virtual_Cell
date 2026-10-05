@@ -141,3 +141,30 @@ is missing, mapping is ambiguous, or genes are genuinely absent, preparation sti
 stops and packages the detailed mapping report. Do not remove the coverage check.
 Return `prepared/round15_mixscale_ifng_02/round15_D1_adapter_review.tar.gz` in that
 case; no re-download or training restart is required to inspect the remaining issues.
+
+## Recovery from 70 missing genes with numeric candidate symbols
+
+Candidates such as `["6291", "6419", "SARS1"]` exposed a second annotation
+reading problem: the historical H5AD files use legacy categorical encoding.
+The integer values refer to labels in `var/__categories/gene_name`; they are
+not gene symbols. The adapter now decodes that table, as well as modern
+`codes/categories` encoding, and records each encoding in
+`gene_annotation_sources.json`. Invalid codes or numeric columns without labels
+fail explicitly. This repair only reads annotation tables and preserves the
+frozen output panel, coverage checks, and holdouts.
+
+Pull this repair and start a new name, since `_02` froze the earlier decoding:
+
+```bash
+cd /root/autodl-tmp/virtual_cell && \
+git -c http.version=HTTP/1.1 pull --ff-only && \
+screen -dmS vcell15adapt3 bash scripts/adapt_round15_autodl.sh --name round15_mixscale_ifng_03
+```
+
+Decoded historical labels can match measured older symbols while the cached
+gene cards use newer symbols. No alias is guessed: exactly one annotated,
+measured symbol is still required. The server must confirm `1834/1834` before
+aggregation proceeds. Any remaining absent or ambiguous genes still block and
+are included in `_03/round15_D1_adapter_review.tar.gz`. Local synthetic tests
+cover legacy/modern decoding, renamed symbols, missing values, invalid codes,
+and ambiguity; they cannot establish the real dataset's final coverage.

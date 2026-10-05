@@ -15,7 +15,7 @@ import pytest
 from test_round12 import dataset
 from vcell.data import load_prepared
 from vcell.round15_adapter import metadata_plan, prepare_extension, report, package, POLICY
-from vcell.round15_gene_mapping import collect_annotations, resolve_panel
+from vcell.round15_gene_mapping import annotation_column, collect_annotations, resolve_panel
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -88,6 +88,64 @@ def test_collects_only_training_var_and_cached_annotation(tmp_path):
     supplied=tmp_path/'explicit.csv';supplied.write_text('panel_gene,source_gene\nENSG1,G0\n')
     explicit=collect_annotations(tmp_path,['ENSG1'],supplied)
     assert len(explicit['sources'])==1 and explicit['sources'][0]['kind']=='explicit CSV'
+
+
+def test_legacy_and_modern_annotation_labels_resolve_historical_symbols(tmp_path):
+    import h5py
+    from vcell.utils import write_json
+    raw=tmp_path/'raw';raw.mkdir()
+    entries=[]
+    for line,legacy in [('K562',True),('RPE1',False)]:
+        path=raw/(line+'.h5ad')
+        with h5py.File(path,'w') as f:
+            # No expression or obs; actual symbols must come from categorical labels.
+            var=f.create_group('var');var.attrs['_index']='_index'
+            var.create_dataset('_index',data=np.array(['ENSG1.2','ENSG2','ENSG3'],dtype='S'))
+            labels=np.array(['SARS','KARS'],dtype='S');codes=np.array([0,1,-1])
+            if legacy:
+                var.create_dataset('gene_name',data=codes)
+                var.create_group('__categories').create_dataset('gene_name',data=labels)
+            else:
+                sym=var.create_group('gene_name')
+                sym.create_dataset('codes',data=codes);sym.create_dataset('categories',data=labels)
+        entries.append({'id':line,'context':line,'path':str(path)})
+    write_json(tmp_path/'prepared/real_min10_01/data_audit.json',{'manifest':{'datasets':entries}})
+    write_json(tmp_path/'knowledge/round12/cards.json',{'ENSG1':{'status':'mapped','symbol':'SARS1'},
+                                                     'ENSG2':{'status':'mapped','symbol':'KARS1'}})
+    annotation=collect_annotations(tmp_path,['ENSG1','ENSG2','ENSG3'])
+    assert {r['symbol'] for r in annotation['records']}=={'SARS','KARS','SARS1','KARS1'}
+    assert [s['symbol_encoding'] for s in annotation['sources'][:2]]==[
+        'legacy categorical (__categories)','categorical (codes/categories)']
+    # Cached modern names do not displace measured, exactly annotated old names.
+    resolved=resolve_panel(['KARS','SARS'],['ENSG1','ENSG2','ENSG3'],annotation)
+    assert resolved.source_gene.tolist()==['SARS','KARS','']
+    assert resolved.status.tolist()==['unique_annotated_symbol','unique_annotated_symbol','no_annotation']
+    # If both annotation versions are measured, the existing ambiguity guard remains.
+    assert resolve_panel(['SARS','SARS1'],['ENSG1'],annotation).status.tolist()==['ambiguous_mapping']
+
+
+@pytest.mark.parametrize('legacy',[False,True])
+@pytest.mark.parametrize('codes',[[0,2],[0,-2],[0.,1.]])
+def test_invalid_categorical_annotation_codes_fail(tmp_path,legacy,codes):
+    import h5py
+    with h5py.File(tmp_path/'bad.h5ad','w') as f:
+        var=f.create_group('var');labels=np.array(['A','B'],dtype='S')
+        if legacy:
+            var.create_dataset('gene_name',data=np.array(codes))
+            var.create_group('__categories').create_dataset('gene_name',data=labels)
+        else:
+            sym=var.create_group('gene_name')
+            sym.create_dataset('codes',data=np.array(codes));sym.create_dataset('categories',data=labels)
+        with pytest.raises(ValueError,match='Invalid categorical codes'):
+            annotation_column(var,'gene_name')
+
+
+def test_numeric_annotations_without_labels_fail(tmp_path):
+    import h5py
+    with h5py.File(tmp_path/'unlabelled.h5ad','w') as f:
+        var=f.create_group('var');var.create_dataset('gene_name',data=[6291,6419])
+        with pytest.raises(ValueError,match='without categorical labels'):
+            annotation_column(var,'gene_name')
 
 
 @pytest.mark.parametrize('change,match',[
