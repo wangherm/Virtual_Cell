@@ -15,12 +15,16 @@ predicts mean responses, not single-cell distributions.
 
 ## Background acquisition and inspection
 
-For the latest executable stage, see [Round15: architecture/training screen and Mixscale inspection](docs/ROUND15.md).
-After successful IFNG inspection, run the [Mixscale adaptation report and full development-data preparation](docs/MIXSCALE_ADAPTER.md).
-It audits and reuses completed Round12–14 assets, repairs the ID-only control,
+The latest training entry point is [Round15 P4: full eligible Mixscale comparison](docs/ROUND15_P4.md):
+matched historical development tasks, reference vs expanded data, STRING Ridge
+and rank16/rank32 factor heads, three seeds, parallel workers and checkpoint resume.
+First complete the [Mixscale adaptation report and data preparation](docs/MIXSCALE_ADAPTER.md).
+
+The preceding [Round15 architecture/training screen and Mixscale inspection](docs/ROUND15.md)
+audits and reuses completed Round12–14 assets, repairs the ID-only control,
 adds matched knowledge controls and response-reference models, and inspects one
 public perturbation dataset in parallel. The broader Round15 confirmation, native
-model and data-expansion stages remain explicitly gated. [Round14](docs/ROUND14.md)
+model, new IFNG holdout and few-shot stages remain separate. [Round14](docs/ROUND14.md)
 documents the preceding 21-head screen.
 
 Start with the [anonymous public-atlas workflow](docs/PUBLIC_BACKGROUND_INSPECT.md):

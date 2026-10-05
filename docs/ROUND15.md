@@ -10,6 +10,10 @@ The user-supplied [expanded proposal](round15_plan/Round15_Expanded_Plan_zh.md)
 and its registries are preserved verbatim with provenance hashes. They describe
 the intended broader program, not a claim that every branch is implemented.
 
+After completing the Mixscale adapter, the separate [P4 training entry point](ROUND15_P4.md)
+runs the matched reference/expanded-data comparison. The core-screen command on
+this page remains unchanged and does not automatically launch P4.
+
 ## What Round14 established
 
 The supplied light archive contained 189 completed heads across nine workers.

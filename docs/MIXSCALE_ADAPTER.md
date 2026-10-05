@@ -204,3 +204,11 @@ and its [field definitions](https://hgnc.genenames.org/help/statistics-and-downl
 `scripts/build_round15_hgnc_snapshot.py --hgnc-tsv FILE --genes ID... --output FILE`
 rebuilds a subset from a local full TSV, with ownership checked against every
 Approved record in that TSV. Changing the snapshot requires a new run name.
+
+## Train after a completed adapter
+
+Once `_04` reports `ADAPTER_READY`, use the separate [Round15 P4 training
+launcher](ROUND15_P4.md). It compares the historical reference with the full
+eligible expansion, extends only the required STRING features, audits target
+aliases and preserves the old evaluation rows. It does not use the legacy
+Round15 core-screen command to train the expanded dataset.
