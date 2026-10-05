@@ -11,6 +11,8 @@ import pandas as pd
 from .background_inspect import decode
 from .utils import file_sha256
 
+HGNC_SNAPSHOT = Path(__file__).resolve().parents[2]/'configs/round15_hgnc_previous_symbols.json'
+
 
 def stable_id(value):
     value = str(value)
@@ -48,9 +50,10 @@ def annotation_column(group, key):
     return np.array([labels[int(c)] if c >= 0 else '<missing>' for c in codes]), encoding
 
 
-def collect_annotations(work, panel, explicit=None):
+def collect_annotations(work, panel, explicit=None, hgnc_snapshot=None):
     """Read only var identifiers from K562/RPE1, plus existing mapped gene cards.
 
+    A bundled HGNC snapshot supplies approved historical names for 21 IDs.
     No expression, cell observations, held-out data, or network calls are needed.
     The exact annotation pairs and provenance are frozen into the adapter plan.
     """
@@ -105,6 +108,30 @@ def collect_annotations(work, panel, explicit=None):
         for gene,card in cards.items():
             if stable_id(gene) in needed and card.get('status')=='mapped' and card.get('symbol'):
                 records.append({'gene_id':gene,'symbol':str(card['symbol']),'source':str(cards_path)})
+    snapshot_path = Path(hgnc_snapshot) if hgnc_snapshot is not None else HGNC_SNAPSHOT
+    if snapshot_path.is_file():
+        snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
+        if snapshot.get('schema_version') != 1:
+            raise ValueError('Unsupported HGNC naming snapshot')
+        selected = [row for row in snapshot['records'] if stable_id(row['ensembl_gene_id']) in needed]
+        if selected:
+            sources.append({'kind':'bundled HGNC approved/previous symbol snapshot', 'path':str(snapshot_path),
+                            'sha256':file_sha256(snapshot_path), 'upstream':snapshot['source']})
+        for row in selected:
+            if row['status'] != 'Approved':
+                raise ValueError('HGNC naming repair requires an Approved gene record')
+            for field, symbols in [('symbol',[row['symbol']]),('prev_symbol',row['prev_symbol'])]:
+                for symbol in symbols:
+                    # Reject names reused as an approved/previous name of another
+                    # gene anywhere in the complete table, not just in this panel.
+                    if row['symbol_owners'].get(symbol) != [row['hgnc_id']]:
+                        warnings.append(f'Conflicting HGNC name excluded: {row["ensembl_gene_id"]}/{symbol}')
+                        continue
+                    records.append({'gene_id':row['ensembl_gene_id'],'symbol':symbol,
+                                    'source':row['report_url']+' ['+field+']',
+                                    'hgnc_id':row['hgnc_id'],'annotation_type':'HGNC '+field})
+    else:
+        warnings.append('Bundled HGNC naming snapshot unavailable')
     if not sources: warnings.append('No local annotations found; --gene-map accepts an explicit audited mapping CSV')
     return {'records':records,'sources':sources,'warnings':warnings}
 
@@ -112,7 +139,8 @@ def collect_annotations(work, panel, explicit=None):
 def resolve_panel(source_genes, panel, annotations=None):
     """Exact IDs first; otherwise require one annotated, measured source symbol.
 
-    Only Ensembl version suffixes are normalized. No case folding, fuzzy aliases,
+    Only Ensembl version suffixes are normalized. Approved historical names are
+    exact annotation evidence, not inferred aliases. No case folding, fuzzy names,
     duplicate summation, zero filling, or expression-based choices are allowed.
     """
     source_genes, panel = list(map(str,source_genes)), list(map(str,panel))

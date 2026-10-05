@@ -148,6 +148,71 @@ def test_numeric_annotations_without_labels_fail(tmp_path):
             annotation_column(var,'gene_name')
 
 
+def test_bundled_hgnc_repairs_all_21_ids_with_exact_previous_names(tmp_path):
+    # Names independently checked against HGNC prev_symbol, not guessed aliases.
+    pairs=[('ENSG00000103254','FAM173A'),('ENSG00000104964','AES'),
+           ('ENSG00000108021','FAM208B'),('ENSG00000113163','COL4A3BP'),
+           ('ENSG00000116747','TROVE2'),('ENSG00000122378','FAM213A'),
+           ('ENSG00000122545','SEPT7'),('ENSG00000125354','SEPT6'),
+           ('ENSG00000138758','SEPT11'),('ENSG00000166595','FAM96B'),
+           ('ENSG00000168385','SEPT2'),('ENSG00000173436','MINOS1'),
+           ('ENSG00000173465','SSSCA1'),('ENSG00000174718','KIAA1551'),
+           ('ENSG00000174917','C19orf70'),('ENSG00000176731','C8orf59'),
+           ('ENSG00000184640','SEPT9'),('ENSG00000198356','ASNA1'),
+           ('ENSG00000204387','C6orf48'),('ENSG00000228300','C19orf24'),
+           ('ENSG00000270170','NCBP2-AS2')]
+    panel=[gene for gene,_ in pairs]
+    annotation=collect_annotations(tmp_path,panel)
+    source=[name for _,name in reversed(pairs)]
+    frame=resolve_panel(source,panel,annotation)
+    assert frame.measured.all() and frame.source_gene.tolist()==[name for _,name in pairs]
+    assert frame.source_index.tolist()==list(reversed(range(21)))
+    assert annotation['sources'][0]['upstream']['sha256']=='2b4224ea847df2fc6982f5b2a52804c5d92fbb8810b134afb636f6029452dc03'
+    assert any('DIFF6' in warning for warning in annotation['warnings'])
+    # SEPT2 is a previous approved name of SEPTIN2, but an informal alias of
+    # SEPTIN6. Importing every alias would attach it to the wrong output gene.
+    only_sept6=resolve_panel(['SEPT2'],['ENSG00000125354'],annotation)
+    assert not only_sept6.measured.any()
+
+
+def test_hgnc_does_not_fill_absent_genes_or_choose_between_two_measured_names(tmp_path):
+    gene='ENSG00000104964'
+    annotation=collect_annotations(tmp_path,[gene])
+    assert resolve_panel(['not_AES'],[gene],annotation).status.tolist()==['not_measured']
+    assert resolve_panel(['AES','TLE5'],[gene],annotation).status.tolist()==['ambiguous_mapping']
+    # DIFF6 has two Approved/previous owners in the complete HGNC table.
+    gene='ENSG00000168385'
+    annotation=collect_annotations(tmp_path,[gene])
+    assert resolve_panel(['DIFF6'],[gene],annotation).status.tolist()==['not_measured']
+
+
+def test_hgnc_snapshot_builder_checks_names_against_genes_outside_selected_panel(tmp_path):
+    sys.path.insert(0,str(REPO/'scripts'))
+    from build_round15_hgnc_snapshot import build
+    table=tmp_path/'hgnc.tsv'
+    table.write_text('ensembl_gene_id\thgnc_id\tsymbol\tstatus\tprev_symbol\talias_symbol\n'
+                     'ENSG1\tHGNC:1\tNEW\tApproved\tOLD|SHARED\t\n'
+                     'ENSG2\tHGNC:2\tOTHER\tApproved\tSHARED\tOLD\n'
+                     'ENSG3\tHGNC:3\tOLD\tEntry Withdrawn\t\t\n')
+    snapshot=build(table,['ENSG1'])
+    assert len(snapshot['records'])==1
+    row=snapshot['records'][0]
+    assert row['symbol_owners']['SHARED']==['HGNC:1','HGNC:2']
+    assert row['symbol_owners']['OLD']==['HGNC:1']
+    path=tmp_path/'snapshot.json';path.write_text(json.dumps(snapshot))
+    annotation=collect_annotations(tmp_path,['ENSG1'],hgnc_snapshot=path)
+    assert resolve_panel(['OLD','SHARED'],['ENSG1'],annotation).source_gene.tolist()==['OLD']
+    assert any('SHARED' in warning for warning in annotation['warnings'])
+    with pytest.raises(ValueError,match='found 0'):build(table,['ENSG3'])
+    # An annotation update must change the frozen identity even if only one
+    # output ID currently needs the snapshot.
+    before=annotation['sources'][0]['sha256']
+    row['prev_symbol'].append('ADDITIONAL');row['symbol_owners']['ADDITIONAL']=['HGNC:1']
+    path.write_text(json.dumps(snapshot))
+    after=collect_annotations(tmp_path,['ENSG1'],hgnc_snapshot=path)
+    assert before != after['sources'][0]['sha256']
+
+
 @pytest.mark.parametrize('change,match',[
     ('panel','Missing 1 frozen'),('guide','guide/gene'),('duplicate','Duplicate cell'),('missing','Empty required'),('stimulus','stimulus')])
 def test_invalid_metadata_and_panel_block(tmp_path,change,match):

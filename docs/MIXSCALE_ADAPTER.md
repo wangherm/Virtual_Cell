@@ -168,3 +168,39 @@ aggregation proceeds. Any remaining absent or ambiguous genes still block and
 are included in `_03/round15_D1_adapter_review.tar.gz`. Local synthetic tests
 cover legacy/modern decoding, renamed symbols, missing values, invalid codes,
 and ambiguity; they cannot establish the real dataset's final coverage.
+
+## Recovery from the remaining 21 current-name-only matches
+
+After categorical decoding, 1,813/1,834 output IDs mapped. The remaining 21 had
+only newer annotated symbols (e.g. `TLE5`, `CERT1`, `SEPTIN7`). Their official
+HGNC records contain previous approved symbols such as `AES`, `COL4A3BP`, and
+`SEPT7`. The fixed `configs/round15_hgnc_previous_symbols.json` snapshot contains
+only those 21 Ensembl IDs, with HGNC identifiers, report URLs, source SHA256,
+retrieval time and symbol-ownership evidence. It supplies exact annotation
+evidence alongside the existing H5AD annotations; no server lookup is needed.
+
+Only `symbol` and `prev_symbol` are used. Informal `alias_symbol` is excluded:
+for example, `SEPT2` is a previous approved name of `SEPTIN2` but also an alias
+of `SEPTIN6`. Names shared by multiple Approved/previous records anywhere in
+the complete HGNC table are excluded; this rejects `DIFF6`. Multiple measured
+names for one output ID or shared source rows still block preparation. The
+snapshot and provenance are frozen into the plan and included in the review.
+
+```bash
+cd /root/autodl-tmp/virtual_cell && \
+git -c http.version=HTTP/1.1 pull --ff-only && \
+screen -dmS vcell15adapt4 bash scripts/adapt_round15_autodl.sh --name round15_mixscale_ifng_04
+```
+
+The new name is required because `_03` froze earlier annotation evidence. The
+RDS and R installation are reused. Local tests cover all 21 ID/previous-name
+pairs and reject absence, ambiguity, informal aliases, cross-gene name reuse,
+and changed snapshot identity. Actual source-row presence must still pass the
+server's `MIXSCALE PANEL VERIFIED: 1834/1834` check before aggregation. A naming
+repair cannot supply expression measurements for genuinely absent genes.
+
+Snapshot provenance comes from the [HGNC complete set](https://hgnc.genenames.org/download/)
+and its [field definitions](https://hgnc.genenames.org/help/statistics-and-downloads/).
+`scripts/build_round15_hgnc_snapshot.py --hgnc-tsv FILE --genes ID... --output FILE`
+rebuilds a subset from a local full TSV, with ownership checked against every
+Approved record in that TSV. Changing the snapshot requires a new run name.

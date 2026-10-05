@@ -114,3 +114,14 @@ retain their respective terms and are not relicensed under this code's MIT
 license. STRING association confidence is not a causal effect size or a signed
 regulatory coefficient. Frozen Qwen text representations retain the existing
 Qwen model terms; State-derived distillation restrictions above still apply.
+
+# Round 15 HGNC naming annotations
+
+`configs/round15_hgnc_previous_symbols.json` contains a 21-gene subset of the
+official [HGNC complete set](https://hgnc.genenames.org/download/), downloaded
+from its public Google Cloud bucket. Source URL, SHA256, retrieval timestamp,
+HGNC identifiers, report links and Approved/previous-symbol ownership are
+retained in the snapshot. These are gene naming annotations, not expression
+data or learned prediction weights. Attribute the HUGO Gene Nomenclature
+Committee when using them; their upstream terms are not replaced by the
+repository's MIT code license. The server reads the bundled snapshot offline.

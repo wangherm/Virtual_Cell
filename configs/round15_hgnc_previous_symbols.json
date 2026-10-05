@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "scope": "Annotation-only naming repair for the selected unresolved Ensembl IDs; not a general alias database",
+  "source": {
+    "url": "https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt",
+    "sha256": "2b4224ea847df2fc6982f5b2a52804c5d92fbb8810b134afb636f6029452dc03",
+    "retrieved_at": "2026-10-05T18:26:13.382700+00:00",
+    "rows": 45187,
+    "fields": [
+      "ensembl_gene_id",
+      "hgnc_id",
+      "prev_symbol",
+      "status",
+      "symbol"
+    ],
+    "ownership_check": "All Approved symbol and prev_symbol fields in the complete set"
+  },
+  "records": [
+    {
+      "ensembl_gene_id": "ENSG00000103254",
+      "hgnc_id": "HGNC:14152",
+      "symbol": "ANTKMT",
+      "status": "Approved",
+      "prev_symbol": [
+        "C16orf24",
+        "FAM173A"
+      ],
+      "symbol_owners": {
+        "ANTKMT": [
+          "HGNC:14152"
+        ],
+        "C16orf24": [
+          "HGNC:14152"
+        ],
+        "FAM173A": [
+          "HGNC:14152"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:14152"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000104964",
+      "hgnc_id": "HGNC:307",
+      "symbol": "TLE5",
+      "status": "Approved",
+      "prev_symbol": [
+        "AES"
+      ],
+      "symbol_owners": {
+        "TLE5": [
+          "HGNC:307"
+        ],
+        "AES": [
+          "HGNC:307"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:307"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000108021",
+      "hgnc_id": "HGNC:23484",
+      "symbol": "TASOR2",
+      "status": "Approved",
+      "prev_symbol": [
+        "C10orf18",
+        "FAM208B"
+      ],
+      "symbol_owners": {
+        "TASOR2": [
+          "HGNC:23484"
+        ],
+        "C10orf18": [
+          "HGNC:23484"
+        ],
+        "FAM208B": [
+          "HGNC:23484"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:23484"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000113163",
+      "hgnc_id": "HGNC:2205",
+      "symbol": "CERT1",
+      "status": "Approved",
+      "prev_symbol": [
+        "COL4A3BP"
+      ],
+      "symbol_owners": {
+        "CERT1": [
+          "HGNC:2205"
+        ],
+        "COL4A3BP": [
+          "HGNC:2205"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:2205"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000116747",
+      "hgnc_id": "HGNC:11313",
+      "symbol": "RO60",
+      "status": "Approved",
+      "prev_symbol": [
+        "SSA2",
+        "TROVE2"
+      ],
+      "symbol_owners": {
+        "RO60": [
+          "HGNC:11313"
+        ],
+        "SSA2": [
+          "HGNC:11313"
+        ],
+        "TROVE2": [
+          "HGNC:11313"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11313"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000122378",
+      "hgnc_id": "HGNC:28651",
+      "symbol": "PRXL2A",
+      "status": "Approved",
+      "prev_symbol": [
+        "C10orf58",
+        "FAM213A"
+      ],
+      "symbol_owners": {
+        "PRXL2A": [
+          "HGNC:28651"
+        ],
+        "C10orf58": [
+          "HGNC:28651"
+        ],
+        "FAM213A": [
+          "HGNC:28651"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:28651"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000122545",
+      "hgnc_id": "HGNC:1717",
+      "symbol": "SEPTIN7",
+      "status": "Approved",
+      "prev_symbol": [
+        "CDC10",
+        "SEPT7"
+      ],
+      "symbol_owners": {
+        "SEPTIN7": [
+          "HGNC:1717"
+        ],
+        "CDC10": [
+          "HGNC:1717"
+        ],
+        "SEPT7": [
+          "HGNC:1717"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:1717"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000125354",
+      "hgnc_id": "HGNC:15848",
+      "symbol": "SEPTIN6",
+      "status": "Approved",
+      "prev_symbol": [
+        "SEPT6"
+      ],
+      "symbol_owners": {
+        "SEPTIN6": [
+          "HGNC:15848"
+        ],
+        "SEPT6": [
+          "HGNC:15848"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:15848"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000138758",
+      "hgnc_id": "HGNC:25589",
+      "symbol": "SEPTIN11",
+      "status": "Approved",
+      "prev_symbol": [
+        "SEPT11"
+      ],
+      "symbol_owners": {
+        "SEPTIN11": [
+          "HGNC:25589"
+        ],
+        "SEPT11": [
+          "HGNC:25589"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:25589"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000166595",
+      "hgnc_id": "HGNC:24261",
+      "symbol": "CIAO2B",
+      "status": "Approved",
+      "prev_symbol": [
+        "FAM96B"
+      ],
+      "symbol_owners": {
+        "CIAO2B": [
+          "HGNC:24261"
+        ],
+        "FAM96B": [
+          "HGNC:24261"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:24261"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000168385",
+      "hgnc_id": "HGNC:7729",
+      "symbol": "SEPTIN2",
+      "status": "Approved",
+      "prev_symbol": [
+        "DIFF6",
+        "NEDD5",
+        "SEPT2"
+      ],
+      "symbol_owners": {
+        "SEPTIN2": [
+          "HGNC:7729"
+        ],
+        "DIFF6": [
+          "HGNC:2879",
+          "HGNC:7729"
+        ],
+        "NEDD5": [
+          "HGNC:7729"
+        ],
+        "SEPT2": [
+          "HGNC:7729"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:7729"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000173436",
+      "hgnc_id": "HGNC:32068",
+      "symbol": "MICOS10",
+      "status": "Approved",
+      "prev_symbol": [
+        "C1orf151",
+        "MINOS1"
+      ],
+      "symbol_owners": {
+        "MICOS10": [
+          "HGNC:32068"
+        ],
+        "C1orf151": [
+          "HGNC:32068"
+        ],
+        "MINOS1": [
+          "HGNC:32068"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:32068"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000173465",
+      "hgnc_id": "HGNC:11328",
+      "symbol": "ZNRD2",
+      "status": "Approved",
+      "prev_symbol": [
+        "SSSCA1"
+      ],
+      "symbol_owners": {
+        "ZNRD2": [
+          "HGNC:11328"
+        ],
+        "SSSCA1": [
+          "HGNC:11328"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11328"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000174718",
+      "hgnc_id": "HGNC:25559",
+      "symbol": "RESF1",
+      "status": "Approved",
+      "prev_symbol": [
+        "C12orf35",
+        "KIAA1551"
+      ],
+      "symbol_owners": {
+        "RESF1": [
+          "HGNC:25559"
+        ],
+        "C12orf35": [
+          "HGNC:25559"
+        ],
+        "KIAA1551": [
+          "HGNC:25559"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:25559"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000174917",
+      "hgnc_id": "HGNC:33702",
+      "symbol": "MICOS13",
+      "status": "Approved",
+      "prev_symbol": [
+        "C19orf70"
+      ],
+      "symbol_owners": {
+        "MICOS13": [
+          "HGNC:33702"
+        ],
+        "C19orf70": [
+          "HGNC:33702"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:33702"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000176731",
+      "hgnc_id": "HGNC:32235",
+      "symbol": "RBIS",
+      "status": "Approved",
+      "prev_symbol": [
+        "C8orf59"
+      ],
+      "symbol_owners": {
+        "RBIS": [
+          "HGNC:32235"
+        ],
+        "C8orf59": [
+          "HGNC:32235"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:32235"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000184640",
+      "hgnc_id": "HGNC:7323",
+      "symbol": "SEPTIN9",
+      "status": "Approved",
+      "prev_symbol": [
+        "MSF",
+        "SEPT9"
+      ],
+      "symbol_owners": {
+        "SEPTIN9": [
+          "HGNC:7323"
+        ],
+        "MSF": [
+          "HGNC:7323"
+        ],
+        "SEPT9": [
+          "HGNC:7323"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:7323"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000198356",
+      "hgnc_id": "HGNC:752",
+      "symbol": "GET3",
+      "status": "Approved",
+      "prev_symbol": [
+        "ASNA1"
+      ],
+      "symbol_owners": {
+        "GET3": [
+          "HGNC:752"
+        ],
+        "ASNA1": [
+          "HGNC:752"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:752"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000204387",
+      "hgnc_id": "HGNC:19078",
+      "symbol": "SNHG32",
+      "status": "Approved",
+      "prev_symbol": [
+        "C6orf48"
+      ],
+      "symbol_owners": {
+        "SNHG32": [
+          "HGNC:19078"
+        ],
+        "C6orf48": [
+          "HGNC:19078"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:19078"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000228300",
+      "hgnc_id": "HGNC:26073",
+      "symbol": "FAM174C",
+      "status": "Approved",
+      "prev_symbol": [
+        "C19orf24"
+      ],
+      "symbol_owners": {
+        "FAM174C": [
+          "HGNC:26073"
+        ],
+        "C19orf24": [
+          "HGNC:26073"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:26073"
+    },
+    {
+      "ensembl_gene_id": "ENSG00000270170",
+      "hgnc_id": "HGNC:25121",
+      "symbol": "NCBP2AS2",
+      "status": "Approved",
+      "prev_symbol": [
+        "NCBP2-AS2"
+      ],
+      "symbol_owners": {
+        "NCBP2AS2": [
+          "HGNC:25121"
+        ],
+        "NCBP2-AS2": [
+          "HGNC:25121"
+        ]
+      },
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:25121"
+    }
+  ]
+}
