@@ -23,6 +23,7 @@ from vcell.round11 import freeze, verify_files
 from vcell.round12 import make_partition
 from vcell.round15 import seal
 from vcell.round15_p4 import METHODS, assert_mixscale_extension, harmonize, prepare_relations, report, worker
+from vcell.round15_target_annotation import SNAPSHOT
 from vcell.selection import row_weights
 from vcell.train import source_fingerprint
 from vcell.utils import file_sha256, write_json
@@ -129,6 +130,7 @@ def launch(a,work,root):
         'original_fingerprint':original['audit']['fingerprint'],
         'original_metadata':file_sha256(original_path/'metadata.csv'),
         'parent_knowledge':str(parent_knowledge),'parent_knowledge_complete':file_sha256(parent_knowledge/'COMPLETE.json'),
+        'target_annotation_snapshot':file_sha256(SNAPSHOT),
         'background_path':str(background),'background_complete':file_sha256(background/'COMPLETE.json'),
         'background_report':file_sha256(background/'report.json'),
         'round10_plan':file_sha256(previous/'plan.json'),'round10_budget':file_sha256(previous/'budget.json'),

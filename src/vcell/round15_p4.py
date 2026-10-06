@@ -15,6 +15,7 @@ from .round12 import design, encode_background, fit_ridge, projection, score, ta
 from .round13 import identity_indices, retrieval
 from .round14 import response_diagnostics, target_representation
 from .round15 import infer, reconstruct, seal, train_head
+from .round15_target_annotation import SNAPSHOT, apply_snapshot, entrez_identity, load_snapshot
 from .selection import mse, row_weights
 from .specialization import reference_responses
 from .train import source_fingerprint
@@ -49,7 +50,7 @@ def canonical_id(card):
     if card.get('status') != 'mapped':
         return None
     if card.get('entrezgene') is not None:
-        return 'entrez:'+str(card['entrezgene'])
+        return 'entrez:'+entrez_identity(card['entrezgene'])
     return 'symbol:'+str(card['symbol']) if card.get('symbol') else None
 
 
@@ -82,7 +83,7 @@ def target_aliases(reference, expanded, cards):
     return aliases, pd.DataFrame(rows)
 
 
-def prepare_relations(reference, expanded, parent, dest):
+def prepare_relations(reference, expanded, parent, dest, target_snapshot=SNAPSHOT):
     """Preserve every historical STRING vector; query only added target metadata.
 
     This artifact contains STRING features only. It does not pretend to provide
@@ -93,14 +94,19 @@ def prepare_relations(reference, expanded, parent, dest):
     base = load_knowledge(parent/'knowledge.npz',reference)
     identity = {'parent_complete':file_sha256(parent/'COMPLETE.json'),
                 'genes':expanded['genes'].tolist(),'targets':expanded['perturbations'].tolist(),
-                'code':file_sha256(__file__),'string_version':'12.0','neighbor_limit':16}
+                'code':file_sha256(__file__),'string_version':'12.0','neighbor_limit':16,
+                'target_snapshot':file_sha256(target_snapshot)}
     freeze(dest/'plan.json',identity)
     if (dest/'COMPLETE.json').exists():
         verify_files(dest)
         return json.loads((dest/'target_aliases.json').read_text())['aliases']
     cards = json.loads((parent/'cards.json').read_text())
     new = sorted(set(map(str,expanded['perturbations']))-set(map(str,reference['perturbations'])))
-    missing = [label for label in new if label not in cards]
+    snapshot,known=load_snapshot(target_snapshot)
+    # Approved HGNC records cover current and previous official names. Keep the
+    # online fallback only for labels outside the bounded snapshot, and retry
+    # missing/ambiguous inherited cards rather than treating presence as success.
+    missing = [label for label in new if label not in known and canonical_id(cards.get(label,{})) is None]
     print(f'P4 ANNOTATION: {len(new)} added labels; {len(missing)} require annotation lookup',flush=True)
     records = []
     for start in range(0,len(missing),100):
@@ -108,6 +114,10 @@ def prepare_relations(reference, expanded, parent, dest):
             {'q':','.join(missing[start:start+100]),'scopes':'symbol,ensembl.gene','species':'9606',
              'fields':'symbol,name,summary,entrezgene,taxid','size':'5'})
     cards.update(resolve_cards(missing,records))
+    cards,annotation_audit=apply_snapshot(new,cards,target_snapshot)
+    write_json(dest/'target_annotation_snapshot.json',snapshot)
+    pd.DataFrame(annotation_audit).to_csv(dest/'target_annotation_audit.csv',index=False)
+    write_json(dest/'cards.json',cards)
     aliases, audit = target_aliases(reference,expanded,cards)
     audit.to_csv(dest/'target_id_audit.csv',index=False)
     write_json(dest/'target_aliases.json',{'aliases':aliases})

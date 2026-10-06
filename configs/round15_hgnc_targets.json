@@ -1,0 +1,889 @@
+{
+  "schema_version": 1,
+  "scope": "Selected Mixscale IFNG target identities; approved and previous names only; no informal aliases",
+  "snapshot_built_at": "2026-10-06T06:44:07.969286+00:00",
+  "source": {
+    "url": "https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt",
+    "sha256": "2b4224ea847df2fc6982f5b2a52804c5d92fbb8810b134afb636f6029452dc03",
+    "rows": 45187,
+    "fields": [
+      "ensembl_gene_id",
+      "entrez_id",
+      "hgnc_id",
+      "name",
+      "prev_symbol",
+      "status",
+      "symbol"
+    ],
+    "ownership_check": "All Approved symbol, prev_symbol and ensembl_gene_id fields in the full table"
+  },
+  "records": [
+    {
+      "query": "ATF3",
+      "symbol": "ATF3",
+      "name": "activating transcription factor 3",
+      "status": "Approved",
+      "hgnc_id": "HGNC:785",
+      "entrez_id": "467",
+      "ensembl_gene_id": "ENSG00000162772",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:785"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:785"
+    },
+    {
+      "query": "ATF5",
+      "symbol": "ATF5",
+      "name": "activating transcription factor 5",
+      "status": "Approved",
+      "hgnc_id": "HGNC:790",
+      "entrez_id": "22809",
+      "ensembl_gene_id": "ENSG00000169136",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:790"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:790"
+    },
+    {
+      "query": "BATF2",
+      "symbol": "BATF2",
+      "name": "basic leucine zipper ATF-like transcription factor 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:25163",
+      "entrez_id": "116071",
+      "ensembl_gene_id": "ENSG00000168062",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:25163"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:25163"
+    },
+    {
+      "query": "CEBPB",
+      "symbol": "CEBPB",
+      "name": "CCAAT enhancer binding protein beta",
+      "status": "Approved",
+      "hgnc_id": "HGNC:1834",
+      "entrez_id": "1051",
+      "ensembl_gene_id": "ENSG00000172216",
+      "prev_symbol": [
+        "TCF5"
+      ],
+      "query_owners": [
+        "HGNC:1834"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:1834"
+    },
+    {
+      "query": "CEBPE",
+      "symbol": "CEBPE",
+      "name": "CCAAT enhancer binding protein epsilon",
+      "status": "Approved",
+      "hgnc_id": "HGNC:1836",
+      "entrez_id": "1053",
+      "ensembl_gene_id": "ENSG00000092067",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:1836"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:1836"
+    },
+    {
+      "query": "CLK1",
+      "symbol": "CLK1",
+      "name": "CDC like kinase 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:2068",
+      "entrez_id": "1195",
+      "ensembl_gene_id": "ENSG00000013441",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:2068"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:2068"
+    },
+    {
+      "query": "CUL1",
+      "symbol": "CUL1",
+      "name": "cullin 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:2551",
+      "entrez_id": "8454",
+      "ensembl_gene_id": "ENSG00000055130",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:2551"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:2551"
+    },
+    {
+      "query": "EHF",
+      "symbol": "EHF",
+      "name": "ETS homologous factor",
+      "status": "Approved",
+      "hgnc_id": "HGNC:3246",
+      "entrez_id": "26298",
+      "ensembl_gene_id": "ENSG00000135373",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:3246"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:3246"
+    },
+    {
+      "query": "ETV7",
+      "symbol": "ETV7",
+      "name": "ETS variant transcription factor 7",
+      "status": "Approved",
+      "hgnc_id": "HGNC:18160",
+      "entrez_id": "51513",
+      "ensembl_gene_id": "ENSG00000010030",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:18160"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:18160"
+    },
+    {
+      "query": "FBXO6",
+      "symbol": "FBXO6",
+      "name": "F-box protein 6",
+      "status": "Approved",
+      "hgnc_id": "HGNC:13585",
+      "entrez_id": "26270",
+      "ensembl_gene_id": "ENSG00000116663",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:13585"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:13585"
+    },
+    {
+      "query": "FMNL2",
+      "symbol": "FMNL2",
+      "name": "formin like 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:18267",
+      "entrez_id": "114793",
+      "ensembl_gene_id": "ENSG00000157827",
+      "prev_symbol": [
+        "FHOD2"
+      ],
+      "query_owners": [
+        "HGNC:18267"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:18267"
+    },
+    {
+      "query": "FOXN3",
+      "symbol": "FOXN3",
+      "name": "forkhead box N3",
+      "status": "Approved",
+      "hgnc_id": "HGNC:1928",
+      "entrez_id": "1112",
+      "ensembl_gene_id": "ENSG00000053254",
+      "prev_symbol": [
+        "C14orf116",
+        "CHES1"
+      ],
+      "query_owners": [
+        "HGNC:1928"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:1928"
+    },
+    {
+      "query": "GUK1",
+      "symbol": "GUK1",
+      "name": "guanylate kinase 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:4693",
+      "entrez_id": "2987",
+      "ensembl_gene_id": "ENSG00000143774",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:4693"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:4693"
+    },
+    {
+      "query": "HLA-DQB1",
+      "symbol": "HLA-DQB1",
+      "name": "major histocompatibility complex, class II, DQ beta 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:4944",
+      "entrez_id": "3119",
+      "ensembl_gene_id": "ENSG00000179344",
+      "prev_symbol": [
+        "HLA-DQB"
+      ],
+      "query_owners": [
+        "HGNC:4944"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:4944"
+    },
+    {
+      "query": "HLX",
+      "symbol": "HLX",
+      "name": "H2.0 like homeobox",
+      "status": "Approved",
+      "hgnc_id": "HGNC:4978",
+      "entrez_id": "3142",
+      "ensembl_gene_id": "ENSG00000136630",
+      "prev_symbol": [
+        "HLX1"
+      ],
+      "query_owners": [
+        "HGNC:4978"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:4978"
+    },
+    {
+      "query": "IFI16",
+      "symbol": "IFI16",
+      "name": "interferon gamma inducible protein 16",
+      "status": "Approved",
+      "hgnc_id": "HGNC:5395",
+      "entrez_id": "3428",
+      "ensembl_gene_id": "ENSG00000163565",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:5395"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:5395"
+    },
+    {
+      "query": "IFNGR1",
+      "symbol": "IFNGR1",
+      "name": "interferon gamma receptor 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:5439",
+      "entrez_id": "3459",
+      "ensembl_gene_id": "ENSG00000027697",
+      "prev_symbol": [
+        "IFNGR"
+      ],
+      "query_owners": [
+        "HGNC:5439"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:5439"
+    },
+    {
+      "query": "IFNGR2",
+      "symbol": "IFNGR2",
+      "name": "interferon gamma receptor 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:5440",
+      "entrez_id": "3460",
+      "ensembl_gene_id": "ENSG00000159128",
+      "prev_symbol": [
+        "IFNGT1"
+      ],
+      "query_owners": [
+        "HGNC:5440"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:5440"
+    },
+    {
+      "query": "IRF1",
+      "symbol": "IRF1",
+      "name": "interferon regulatory factor 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6116",
+      "entrez_id": "3659",
+      "ensembl_gene_id": "ENSG00000125347",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6116"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6116"
+    },
+    {
+      "query": "IRF2",
+      "symbol": "IRF2",
+      "name": "interferon regulatory factor 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6117",
+      "entrez_id": "3660",
+      "ensembl_gene_id": "ENSG00000168310",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6117"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6117"
+    },
+    {
+      "query": "IRF5",
+      "symbol": "IRF5",
+      "name": "interferon regulatory factor 5",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6120",
+      "entrez_id": "3663",
+      "ensembl_gene_id": "ENSG00000128604",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6120"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6120"
+    },
+    {
+      "query": "IRF7",
+      "symbol": "IRF7",
+      "name": "interferon regulatory factor 7",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6122",
+      "entrez_id": "3665",
+      "ensembl_gene_id": "ENSG00000185507",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6122"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6122"
+    },
+    {
+      "query": "IRF9",
+      "symbol": "IRF9",
+      "name": "interferon regulatory factor 9",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6131",
+      "entrez_id": "10379",
+      "ensembl_gene_id": "ENSG00000213928",
+      "prev_symbol": [
+        "ISGF3G"
+      ],
+      "query_owners": [
+        "HGNC:6131"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6131"
+    },
+    {
+      "query": "JAK1",
+      "symbol": "JAK1",
+      "name": "Janus kinase 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6190",
+      "entrez_id": "3716",
+      "ensembl_gene_id": "ENSG00000162434",
+      "prev_symbol": [
+        "JAK1B"
+      ],
+      "query_owners": [
+        "HGNC:6190"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6190"
+    },
+    {
+      "query": "JAK2",
+      "symbol": "JAK2",
+      "name": "Janus kinase 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6192",
+      "entrez_id": "3717",
+      "ensembl_gene_id": "ENSG00000096968",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6192"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6192"
+    },
+    {
+      "query": "JUN",
+      "symbol": "JUN",
+      "name": "Jun proto-oncogene, AP-1 transcription factor subunit",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6204",
+      "entrez_id": "3725",
+      "ensembl_gene_id": "ENSG00000177606",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6204"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6204"
+    },
+    {
+      "query": "KIN",
+      "symbol": "KIN",
+      "name": "Kin17 DNA and RNA binding protein",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6327",
+      "entrez_id": "22944",
+      "ensembl_gene_id": "ENSG00000151657",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6327"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6327"
+    },
+    {
+      "query": "KLF4",
+      "symbol": "KLF4",
+      "name": "KLF transcription factor 4",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6348",
+      "entrez_id": "9314",
+      "ensembl_gene_id": "ENSG00000136826",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6348"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6348"
+    },
+    {
+      "query": "MAFB",
+      "symbol": "MAFB",
+      "name": "MAF bZIP transcription factor B",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6408",
+      "entrez_id": "9935",
+      "ensembl_gene_id": "ENSG00000204103",
+      "prev_symbol": [
+        "KRML"
+      ],
+      "query_owners": [
+        "HGNC:6408"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6408"
+    },
+    {
+      "query": "MAFF",
+      "symbol": "MAFF",
+      "name": "MAF bZIP transcription factor F",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6780",
+      "entrez_id": "23764",
+      "ensembl_gene_id": "ENSG00000185022",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6780"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6780"
+    },
+    {
+      "query": "MCRS1",
+      "symbol": "MCRS1",
+      "name": "microspherule protein 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:6960",
+      "entrez_id": "10445",
+      "ensembl_gene_id": "ENSG00000187778",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:6960"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:6960"
+    },
+    {
+      "query": "MYC",
+      "symbol": "MYC",
+      "name": "MYC proto-oncogene, bHLH transcription factor",
+      "status": "Approved",
+      "hgnc_id": "HGNC:7553",
+      "entrez_id": "4609",
+      "ensembl_gene_id": "ENSG00000136997",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:7553"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:7553"
+    },
+    {
+      "query": "NFKB1",
+      "symbol": "NFKB1",
+      "name": "nuclear factor kappa B subunit 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:7794",
+      "entrez_id": "4790",
+      "ensembl_gene_id": "ENSG00000109320",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:7794"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:7794"
+    },
+    {
+      "query": "PARP12",
+      "symbol": "PARP12",
+      "name": "poly(ADP-ribose) polymerase family member 12",
+      "status": "Approved",
+      "hgnc_id": "HGNC:21919",
+      "entrez_id": "64761",
+      "ensembl_gene_id": "ENSG00000059378",
+      "prev_symbol": [
+        "ZC3HDC1"
+      ],
+      "query_owners": [
+        "HGNC:21919"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:21919"
+    },
+    {
+      "query": "PIK3CA",
+      "symbol": "PIK3CA",
+      "name": "phosphatidylinositol-4,5-bisphosphate 3-kinase catalytic subunit alpha",
+      "status": "Approved",
+      "hgnc_id": "HGNC:8975",
+      "entrez_id": "5290",
+      "ensembl_gene_id": "ENSG00000121879",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:8975"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:8975"
+    },
+    {
+      "query": "PLEK",
+      "symbol": "PLEK",
+      "name": "pleckstrin",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9070",
+      "entrez_id": "5341",
+      "ensembl_gene_id": "ENSG00000115956",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:9070"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9070"
+    },
+    {
+      "query": "PPARG",
+      "symbol": "PPARG",
+      "name": "peroxisome proliferator activated receptor gamma",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9236",
+      "entrez_id": "5468",
+      "ensembl_gene_id": "ENSG00000132170",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:9236"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9236"
+    },
+    {
+      "query": "PRDM1",
+      "symbol": "PRDM1",
+      "name": "PR/SET domain 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9346",
+      "entrez_id": "639",
+      "ensembl_gene_id": "ENSG00000057657",
+      "prev_symbol": [
+        "BLIMP1"
+      ],
+      "query_owners": [
+        "HGNC:9346"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9346"
+    },
+    {
+      "query": "PTGES3",
+      "symbol": "PTGES3",
+      "name": "prostaglandin E synthase 3",
+      "status": "Approved",
+      "hgnc_id": "HGNC:16049",
+      "entrez_id": "10728",
+      "ensembl_gene_id": "ENSG00000110958",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:16049"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:16049"
+    },
+    {
+      "query": "PTPN11",
+      "symbol": "PTPN11",
+      "name": "protein tyrosine phosphatase non-receptor type 11",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9644",
+      "entrez_id": "5781",
+      "ensembl_gene_id": "ENSG00000179295",
+      "prev_symbol": [
+        "NS1"
+      ],
+      "query_owners": [
+        "HGNC:9644"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9644"
+    },
+    {
+      "query": "RARRES3",
+      "symbol": "PLAAT4",
+      "name": "phospholipase A and acyltransferase 4",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9869",
+      "entrez_id": "5920",
+      "ensembl_gene_id": "ENSG00000133321",
+      "prev_symbol": [
+        "RARRES3"
+      ],
+      "query_owners": [
+        "HGNC:9869"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9869"
+    },
+    {
+      "query": "RFX5",
+      "symbol": "RFX5",
+      "name": "regulatory factor X5",
+      "status": "Approved",
+      "hgnc_id": "HGNC:9986",
+      "entrez_id": "5993",
+      "ensembl_gene_id": "ENSG00000143390",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:9986"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:9986"
+    },
+    {
+      "query": "RNF14",
+      "symbol": "RNF14",
+      "name": "ring finger protein 14",
+      "status": "Approved",
+      "hgnc_id": "HGNC:10058",
+      "entrez_id": "9604",
+      "ensembl_gene_id": "ENSG00000013561",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:10058"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:10058"
+    },
+    {
+      "query": "RUNX1",
+      "symbol": "RUNX1",
+      "name": "RUNX family transcription factor 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:10471",
+      "entrez_id": "861",
+      "ensembl_gene_id": "ENSG00000159216",
+      "prev_symbol": [
+        "AML1",
+        "CBFA2"
+      ],
+      "query_owners": [
+        "HGNC:10471"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:10471"
+    },
+    {
+      "query": "SOX2",
+      "symbol": "SOX2",
+      "name": "SRY-box transcription factor 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11195",
+      "entrez_id": "6657",
+      "ensembl_gene_id": "ENSG00000181449",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11195"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11195"
+    },
+    {
+      "query": "SP100",
+      "symbol": "SP100",
+      "name": "SP100 nuclear body protein",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11206",
+      "entrez_id": "6672",
+      "ensembl_gene_id": "ENSG00000067066",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11206"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11206"
+    },
+    {
+      "query": "SP110",
+      "symbol": "SP110",
+      "name": "SP110 nuclear body protein",
+      "status": "Approved",
+      "hgnc_id": "HGNC:5401",
+      "entrez_id": "3431",
+      "ensembl_gene_id": "ENSG00000135899",
+      "prev_symbol": [
+        "IFI41",
+        "IFI75"
+      ],
+      "query_owners": [
+        "HGNC:5401"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:5401"
+    },
+    {
+      "query": "SRC",
+      "symbol": "SRC",
+      "name": "SRC proto-oncogene, non-receptor tyrosine kinase",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11283",
+      "entrez_id": "6714",
+      "ensembl_gene_id": "ENSG00000197122",
+      "prev_symbol": [
+        "SRC1"
+      ],
+      "query_owners": [
+        "HGNC:11283"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11283"
+    },
+    {
+      "query": "STAT1",
+      "symbol": "STAT1",
+      "name": "signal transducer and activator of transcription 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11362",
+      "entrez_id": "6772",
+      "ensembl_gene_id": "ENSG00000115415",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11362"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11362"
+    },
+    {
+      "query": "STAT2",
+      "symbol": "STAT2",
+      "name": "signal transducer and activator of transcription 2",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11363",
+      "entrez_id": "6773",
+      "ensembl_gene_id": "ENSG00000170581",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11363"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11363"
+    },
+    {
+      "query": "STAT3",
+      "symbol": "STAT3",
+      "name": "signal transducer and activator of transcription 3",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11364",
+      "entrez_id": "6774",
+      "ensembl_gene_id": "ENSG00000168610",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11364"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11364"
+    },
+    {
+      "query": "TAPBPL",
+      "symbol": "TAPBPL",
+      "name": "TAP binding protein like",
+      "status": "Approved",
+      "hgnc_id": "HGNC:30683",
+      "entrez_id": "55080",
+      "ensembl_gene_id": "ENSG00000139192",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:30683"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:30683"
+    },
+    {
+      "query": "TBX21",
+      "symbol": "TBX21",
+      "name": "T-box transcription factor 21",
+      "status": "Approved",
+      "hgnc_id": "HGNC:11599",
+      "entrez_id": "30009",
+      "ensembl_gene_id": "ENSG00000073861",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:11599"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:11599"
+    },
+    {
+      "query": "TRAFD1",
+      "symbol": "TRAFD1",
+      "name": "TRAF-type zinc finger domain containing 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:24808",
+      "entrez_id": "10906",
+      "ensembl_gene_id": "ENSG00000135148",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:24808"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:24808"
+    },
+    {
+      "query": "TSC22D1",
+      "symbol": "TSC22D1",
+      "name": "TSC22 domain family member 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:16826",
+      "entrez_id": "8848",
+      "ensembl_gene_id": "ENSG00000102804",
+      "prev_symbol": [
+        "TGFB1I4"
+      ],
+      "query_owners": [
+        "HGNC:16826"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:16826"
+    },
+    {
+      "query": "ZC3H3",
+      "symbol": "ZC3H3",
+      "name": "zinc finger CCCH-type containing 3",
+      "status": "Approved",
+      "hgnc_id": "HGNC:28972",
+      "entrez_id": "23144",
+      "ensembl_gene_id": "ENSG00000014164",
+      "prev_symbol": [
+        "ZC3HDC3"
+      ],
+      "query_owners": [
+        "HGNC:28972"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:28972"
+    },
+    {
+      "query": "ZFP36",
+      "symbol": "ZFP36",
+      "name": "ZFP36 zinc finger CCCH-type",
+      "status": "Approved",
+      "hgnc_id": "HGNC:12862",
+      "entrez_id": "7538",
+      "ensembl_gene_id": "ENSG00000128016",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:12862"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:12862"
+    },
+    {
+      "query": "ZNF267",
+      "symbol": "ZNF267",
+      "name": "zinc finger protein 267",
+      "status": "Approved",
+      "hgnc_id": "HGNC:13060",
+      "entrez_id": "10308",
+      "ensembl_gene_id": "ENSG00000185947",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:13060"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:13060"
+    },
+    {
+      "query": "ZNFX1",
+      "symbol": "ZNFX1",
+      "name": "zinc finger NFX1-type containing 1",
+      "status": "Approved",
+      "hgnc_id": "HGNC:29271",
+      "entrez_id": "57169",
+      "ensembl_gene_id": "ENSG00000124201",
+      "prev_symbol": [],
+      "query_owners": [
+        "HGNC:29271"
+      ],
+      "report_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:29271"
+    }
+  ]
+}

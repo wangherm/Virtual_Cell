@@ -21,6 +21,20 @@ must still resolve locally. No model or perturbation data download is attempted.
 Incremental MyGene/STRING annotation queries may be needed for new target labels;
 only gene identifiers are submitted, never expression or response labels.
 
+The bundled `configs/round15_hgnc_targets.json` resolves all 59 audited Mixscale
+target names offline, including the previous approved name `RARRES3` → `PLAAT4`
+(Entrez5920; HGNC:9869). It records the full-table source SHA256, unique name
+ownership and HGNC reports. Informal aliases are excluded. Only added-target cards
+are updated; a conflicting cached Entrez identity still blocks the run. Targets
+outside this bounded snapshot retain the strict MyGene fallback. STRING queries
+are still needed for genuinely new target vectors.
+
+If the earlier code stopped at annotation with `RARRES3`, update and use
+`--name round15_p4_02`. `_01` remains an audit record; its frozen source identity
+cannot be resumed after this naming fix. No training checkpoint was created by
+that annotation-stage failure. Inspect `knowledge/target_annotation_audit.csv`
+and `target_annotation_snapshot.json` in the new run for the applied evidence.
+
 ```bash
 .venv/bin/python scripts/round15_p4_status.py
 tail -n 40 -f "$(ls -t /root/autodl-tmp/vcell-work/logs/round15_p4_*.log | head -n 1)"
