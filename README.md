@@ -13,6 +13,20 @@ pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation/Ge
 teacher caches. Biological weights are downloaded separately. This repository
 predicts mean responses, not single-cell distributions.
 
+## Model-selection agent architecture
+
+The next research direction is [task- and background-conditioned expert selection](docs/MODEL_SELECTION_AGENT.md).
+The architecture registers executable P4 predictors and fit-only references,
+checks source-OOF capability evidence, supports budgeted tool calls and checkpoint
+recovery, and separates private evaluation from planning. A synthetic offline
+demo exercises fixed/rule/risk/workflow baselines. Live LLM integration and the
+formal IFNG policy comparison are subsequent stages; no agent improvement is
+claimed by the demo.
+
+```bash
+bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
+```
+
 ## Background acquisition and inspection
 
 The latest training entry point is [Round15 P4: full eligible Mixscale comparison](docs/ROUND15_P4.md):
