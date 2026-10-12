@@ -5,9 +5,10 @@ select a complete perturbation predictor for a query, inspect permitted evidence
 execute tools within a declared budget and explicitly finish with one prediction.
 The legacy `vcell.agent` tunes training hyperparameters; it is a different task.
 
-**Current scope: architecture and inference validation.** No live LLM provider,
-new source-OOF refit matrix, 72-cell policy benchmark or HT29 confirmation is
-launched here. Deterministic policies are labelled baselines throughout outputs.
+**Scope of this guide: architecture and inference validation.** The separate
+[live DeepSeek pilot](LIVE_DEEPSEEK_PILOT.md) now supplies an actual provider.
+A new source-OOF refit matrix, 72-cell policy benchmark and HT29 confirmation are
+not launched here. Deterministic policies are labelled baselines throughout outputs.
 The synthetic demonstration is not a biological performance result.
 
 ```mermaid
@@ -192,9 +193,10 @@ Inject a future planner with `execute(..., planner=..., planner_identity="VERSIO
 Its `decide(observation)` returns a typed `Action` or the corresponding exact
 dictionary. It cannot add tools, alter costs, finish with an unexecuted model,
 request private labels or bypass capability checks. It receives a detached
-observation copy. Provider integration will add structured-output parsing,
-token/latency accounting, provider model/version provenance and mocked-provider
-tests before any real API call. No provider/API is contacted in this version.
+observation copy. The DeepSeek integration adds JSON parsing/local validation,
+durable token/request accounting, provider provenance and mocked-provider tests.
+The architecture demonstration still sends no provider requests. See the live
+guide for explicitly launching actual API calls.
 
 ## Next formal experiment
 

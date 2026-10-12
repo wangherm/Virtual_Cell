@@ -48,11 +48,13 @@ def query_from_prepared(data_path,row_id,output):
 
 def package_review(root):
     root=Path(root);names={'expert.json','registry.json','profile.json','result.json','trace.json',
-                         'stage.json','manifest.json','lineage.json','COMPLETE.json'}
+                         'stage.json','manifest.json','lineage.json','COMPLETE.json','plan.json',
+                         'configuration.json','provider_summary.json','PLANNER_ERROR.json','summary.json',
+                         'INCOMPLETE.json','cases.json','inputs.json','counter.json'}
     path=root/'model_agent_review_light.tar.gz';entries={}
     with tarfile.open(path,'w:gz') as tar:
         for p in sorted(root.rglob('*.json')):
-            if p.name not in names:continue
+            if p.name not in names and not p.name.startswith('attempt_'):continue
             value=p.read_bytes();name=p.relative_to(root).as_posix();member=tarfile.TarInfo(name);member.size=len(value)
             tar.addfile(member,io.BytesIO(value));entries[name]={'sha256':hashlib.sha256(value).hexdigest(),'bytes':len(value)}
         value=json.dumps({'files':entries,'scope':'Architecture artifacts only; no response/control arrays or private score tables'},indent=2).encode()

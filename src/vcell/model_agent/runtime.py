@@ -69,6 +69,7 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
     manifest=root/'manifest.json'
     if manifest.exists():
         if not resume or read(manifest)!=identity:raise ValueError('Resume identical model-agent inputs or use a new directory')
+        if hasattr(planner,'validate_resume'):planner.validate_resume(root)
         if (root/'COMPLETE.json').exists():verify(root);return read(root/'result.json')
         state=read(root/'state.json')
     else:
@@ -88,7 +89,12 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
         if state['pending'] is None:
             # Persist a decision before side effects. Pending replay avoids a new
             # planner decision; prediction outputs are atomically cached.
-            decision=planner.decide(copy.deepcopy(observation))
+            try:
+                decision=planner.decide(copy.deepcopy(observation))
+            except Exception as exc:
+                write_json(root/'PLANNER_ERROR.json',{'error_type':type(exc).__name__,
+                    'provider_call':getattr(planner,'last_call',None),'note':'No deterministic fallback or success marker'})
+                raise
             if isinstance(decision,dict):decision=Action(**decision)
             if not isinstance(decision,Action):raise ValueError('Planner must return an Action')
             action=asdict(decision);cost=0.
@@ -102,7 +108,10 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
             if state['spent_units']+cost>budget_units+1e-12:raise ValueError('Planner tool call exceeds declared budget')
             state['spent_units']+=cost
             state['pending']={'action':action,'charged_units':cost,'observation':copy.deepcopy(observation)}
+            if getattr(planner,'last_call',None) is not None:
+                state['pending']['provider_call']=copy.deepcopy(planner.last_call)
             write_json(root/'state.json',state)
+            (root/'PLANNER_ERROR.json').unlink(missing_ok=True)
         pending=state['pending'];decision=Action(**pending['action']);name=decision.expert_id;result={}
         tick=time.perf_counter()
         try:
@@ -137,6 +146,9 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
             'scope':'Architecture validation; not a formal agent effectiveness experiment','test_evaluated':False,
             'synthetic':any(e.card['synthetic'] for e in registry.experts.values()),
             'cost_semantics':'Declared tool units; interrupted uncached execution can repeat physical compute. No hard wall-time guarantee.'}
+    if hasattr(planner,'summary'):
+        result['provider_summary']=planner.summary()
+        result['scope']='Live API/model-execution pilot; not a formal agent effectiveness experiment'
     write_json(root/'state.json',state);write_json(root/'trace.json',state['trace']);write_json(root/'result.json',result)
     seal(root);return result
 

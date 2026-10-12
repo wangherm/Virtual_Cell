@@ -1,0 +1,22 @@
+{
+  "source_attachment": "Virtual_Cell_Live_Agent_Pilot_Patch.zip",
+  "sha256": "28f91d667e9955f0080e2c78a7c3a61f3f401475eb28162b4fd67549c336bb67",
+  "member_sha256": {
+    "live_agent_integration.patch": "643868ec5e9d5c333ed3a225fa3bb6f479772d52d90720efabeb6e22a2f97663",
+    "src/vcell/model_agent/llm_planner.py": "451797372aa6c8e7f9a70ffc6a3a0ce92ac3e251a2b6c4fef7f17aa2f6305ae5",
+    "tests/test_live_model_agent.py": "0f0ea64b7bd69e32f70239c949c9a787ae3587162bff086b232a27b0e87f58f9",
+    "docs/LIVE_MODEL_AGENT_PILOT.md": "b326cadeb1ae2ae7ef065ece41f99de1aa0102ba34a031bf751dd76f425c9325",
+    "IMPLEMENTATION_REVIEW.md": "bd4c80b186c63fc87a77863754b23450ee5027dbbe0f75362e71b9f76d1f1777",
+    "README.txt": "3e4ea329b67548871fdab7a1282dced7605d6852749679d0f238b96618af8cd7"
+  },
+  "review": "Read as proposed code, not executed. OpenAI Responses example adapted to requested DeepSeek HTTP JSON planner.",
+  "changes": [
+    "Local strict action validation",
+    "Persistent request limits and failure usage accounting",
+    "Cached accepted decisions before controller execution",
+    "Provider metadata in action trace",
+    "Three-round synthetic and P4 model-execution launchers"
+  ],
+  "official_model_reference": "https://api-docs.deepseek.com/quick_start/pricing/",
+  "verified_client_date": "2026-10-12"
+}

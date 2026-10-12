@@ -19,12 +19,21 @@ The next research direction is [task- and background-conditioned expert selectio
 The architecture registers executable P4 predictors and fit-only references,
 checks source-OOF capability evidence, supports budgeted tool calls and checkpoint
 recovery, and separates private evaluation from planning. A synthetic offline
-demo exercises fixed/rule/risk/workflow baselines. Live LLM integration and the
-formal IFNG policy comparison are subsequent stages; no agent improvement is
-claimed by the demo.
+demo exercises fixed/rule/risk/workflow baselines. [Live DeepSeek pilots](docs/LIVE_DEEPSEEK_PILOT.md)
+now connect the actual API to this controller. The formal IFNG policy comparison
+is a subsequent stage; no agent improvement is claimed by a connectivity pilot.
 
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
+```
+
+Live pilots default to `deepseek-v4-pro`, thinking enabled, effort `max`, three
+sequential episodes and eight API attempts per episode. They support synthetic
+tools or completed P4 experts, durable request/token accounting, checkpoint
+resume and small review packages. Set `DEEPSEEK_API_KEY` on the server as documented.
+
+```bash
+bash scripts/run_deepseek_autodl.sh --name deepseek_pilot_01 --mode synthetic --rounds 3
 ```
 
 ## Background acquisition and inspection

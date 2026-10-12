@@ -12,7 +12,7 @@ def read(path):return json.loads(Path(path).read_text(encoding='utf-8'))
 def seal(root,**metadata):
     root=Path(root)
     files={p.relative_to(root).as_posix():file_sha256(p) for p in sorted(root.rglob('*'))
-           if p.is_file() and p.name!='COMPLETE.json' and not p.name.endswith('.tmp')}
+           if p.is_file() and p.name!='COMPLETE.json' and not p.name.endswith(('.tmp','.tar.gz'))}
     write_json(root/'COMPLETE.json',{'files':files,**metadata})
 
 
