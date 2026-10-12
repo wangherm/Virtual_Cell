@@ -63,6 +63,28 @@ screen -dmS deepseekreal bash scripts/run_deepseek_autodl.sh \
   --p4-run /root/autodl-tmp/vcell-work/runs/round15_p4_02
 ```
 
+After synthetic connectivity succeeds, use four episodes to cover all four
+development backgrounds with the current exporter:
+
+```bash
+screen -dmS deepseekdata bash scripts/run_deepseek_autodl.sh \
+  --name deepseek_real_data_01 --mode p4 --rounds 4 \
+  --p4-run /root/autodl-tmp/vcell-work/runs/round15_p4_02
+```
+
+Both data conditions retain the entire shared frozen target-annotation cache,
+including targets absent from the reference training dataset. Their original
+encoder, PCA, response basis and model weights remain unchanged. This avoids
+artificially disabling the reference no-ID heads on added genes such as ATF3.
+Fit exposure and same-target reference responses are not invented: a reference
+tool without a fit-only donor remains unavailable. Annotation hash and gene panel
+are part of the model recipe identity, so incompatible older risk profiles fail.
+
+Before any API request, `real_data_readiness.json` checks identical annotations
+and input support for all six numerical predictors on each selected query.
+It records capabilities of all eight tools and is included in the review package.
+Use a new run/export name for this exporter update; previous bundles are immutable.
+
 P4 must be complete and checksummed. The script exports reference and expanded
 seed17/context workers, each with Ridge, rank16, rank32 and fit-only reference.
 It uses the worker's canonical/harmonized target vocabulary. Queries are the

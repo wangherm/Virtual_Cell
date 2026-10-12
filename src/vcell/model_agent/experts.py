@@ -141,8 +141,14 @@ def export_p4(worker_path,output,methods=('string_ridge','factor_rank16','factor
         'source_oof_claim':'not automatic; query background must be excluded from fitting and calibration'}
     relations=arrays(cfg['relations']);lookup={str(p):i for i,p in enumerate(relations['perturbations'])}
     if not np.array_equal(relations['genes'],data['genes']):raise ValueError('Expert relation panel changed')
-    indices=[lookup[str(p)] for p in data['perturbations']]
-    inputs={'genes':data['genes'],'targets':data['perturbations'],'relations':relations['relations'][indices,2,:],
+    if len(lookup)!=len(relations['perturbations']) or not set(map(str,data['perturbations']))<=set(lookup):
+        raise ValueError('Expert relation vocabulary invalid/incomplete')
+    if relations['relations'].shape!=(len(lookup),3,len(data['genes'])) or not np.isfinite(relations['relations']).all():
+        raise ValueError('Invalid expert relation features')
+    # Freeze the entire shared annotation vocabulary, not just the targets in
+    # this model's training dataset. No-ID heads can predict added targets from
+    # these public vectors using their ORIGINAL fit-only PCA and learned weights.
+    inputs={'genes':data['genes'],'targets':relations['perturbations'],'relations':relations['relations'][:,2,:],
         'control_mean':data['baseline'][fit].mean(0),'control_std':np.maximum(data['baseline'][fit].std(0),.1),**references}
     root=Path(output)
     if root.exists() and any(root.iterdir()):raise ValueError('Choose new export directory')
@@ -154,7 +160,9 @@ def export_p4(worker_path,output,methods=('string_ridge','factor_rank16','factor
         card={'expert_id':name,'kind':'reference' if method=='reference' else 'p4','method':method,
               'species':['human'],'modalities':['CRISPRi'],'normalization':NORMALIZATION,
               'provenance':provenance,'recipe':{'method':method,'variant':cfg['variant'],'steps':cfg['max_steps'],
-                  'basis_rank':16 if method=='factor_rank16' else 32,'max_batch':cfg['batch_size']},'synthetic':False}
+                  'basis_rank':16 if method=='factor_rank16' else 32,'max_batch':cfg['batch_size'],
+                  'annotation_sha256':manifest['relations'],'normalization':NORMALIZATION,'genes':data['genes'].tolist()},'synthetic':False,
+              'annotation_vocabulary':'full frozen shared P4 cache; training targets remain separate in provenance'}
         if method!='reference':
             folder=parent/method;verify_files(folder)
             for name_file in ('background_transform.npz','transforms.npz','model.npz' if method=='string_ridge' else 'model.pt'):

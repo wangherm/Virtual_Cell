@@ -217,3 +217,24 @@ def test_real_p4_pilot_exports_matched_tools_and_predicts_without_private_scorin
     assert 'synthetic_selected_mse' not in summary and len(client.calls)==2
     assert (root/'episodes/round_001/selected.npz').exists()
     assert read(root/'inputs.json')['profiles_complete'] is None
+    readiness=read(root/'real_data_readiness.json')
+    assert readiness['matched_predictors']==6 and readiness['registered_tools']==8
+    from vcell.model_agent.experts import Registry
+    from vcell.model_agent.contracts import load_query
+    from vcell.model_agent.artifacts import arrays
+    registry=Registry(root/'pool/registry.json');q=load_query(root/'queries/A549_IFNG.json')
+    assert q.target=='NEW' and q.target not in old['perturbations']
+    for variant in ('reference','expanded'):
+        for method in ('string_ridge','factor_rank16','factor_rank32'):
+            e=registry.experts[variant+'_'+method]
+            assert e.compatible(q)[0] and np.isfinite(e.predict(q)).all()
+    assert not registry.experts['reference_reference'].compatible(q)[0]
+    # Added public annotation does not invent fit exposure or fit responses.
+    assert registry.experts['reference_factor_rank16'].features(q)['fit_target_seen']==0
+    assert registry.experts['reference_factor_rank16'].features(q)['reference_count']==0
+    from vcell.utils import file_sha256
+    for method in ('string_ridge','factor_rank16','factor_rank32'):
+        filename='model.npz' if method=='string_ridge' else 'model.pt'
+        assert file_sha256(root/'pool/reference'/('reference_'+method)/filename)==file_sha256(parent/'models/target_reference_seed17'/method/filename)
+    assert pilot.main(['--work-dir',str(tmp_path),'--name','real_pilot','--mode','p4','--p4-run',str(parent),
+                       '--protocol','target','--rounds','1','--resume'],planner_factory=partial(DeepSeekPlanner,client=Client([])))==root

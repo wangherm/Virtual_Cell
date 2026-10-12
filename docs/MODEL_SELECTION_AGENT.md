@@ -106,6 +106,12 @@ transforms and response bases are copied into checksummed deployment bundles.
 Fit/calibration context and row membership remain in provenance. Historical
 `per_target.csv`/outer scores are **not** used as capability profiles.
 
+Exported target annotations now cover the full shared P4 knowledge vocabulary,
+including added targets not present in a reference model's training dataset.
+The fit-only PCA and checkpoints are copied unchanged; only permitted deployment
+annotations are retained. The same-target reference tool still requires genuine
+fit donors. The annotation checksum and output panel are bound to the recipe.
+
 P4 `expanded` retains P4's equal-context training allocation. It is **not** a new
 fixed-source-ratio recipe. Native State/scGPT/etc. pipelines are not registered
 as standalone predictors unless their complete prediction adapters are added.

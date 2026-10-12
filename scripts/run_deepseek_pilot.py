@@ -25,17 +25,18 @@ BACKGROUNDS=('A549_IFNG','BXPC3_IFNG','HAP1_IFNG','MCF7_IFNG')
 def prepare_p4(parent,root,protocol,seed):
     verify_files(parent);pool=root/'pool';registry=pool/'registry.json'
     if registry.exists():Registry(registry)
-    paths=[];expanded_cfg=None
+    paths=[];expanded_cfg=None;annotation_shas=[]
     for variant in ('reference','expanded'):
         worker=parent/'models'/f'{protocol}_{variant}_seed{seed}'
         verify_files(worker)
-        cfg=read(worker/'manifest.json')['config']
+        manifest=read(worker/'manifest.json');cfg=manifest['config'];annotation_shas.append(manifest['relations'])
         if cfg['variant']!=variant or cfg['seed']!=seed or cfg['protocol']!=protocol:raise ValueError('P4 worker identity mismatch')
         dest=pool/variant
         if (dest/'COMPLETE.json').exists():verify(dest);path=dest/'registry.json'
         else:path=export_p4(worker,dest)
         paths.append(path)
         if variant=='expanded':expanded_cfg=cfg
+    if len(set(annotation_shas))!=1:raise ValueError('Matched expert pools require the same frozen target annotation cache')
     if not registry.exists():registry=combine(paths,registry)
     # Deterministic identifier-only case selection, never based on response/errors.
     metadata=Path(expanded_cfg['data_dir'])/'metadata.csv'
@@ -48,6 +49,19 @@ def prepare_p4(parent,root,protocol,seed):
         if not output.exists():query_from_prepared(expanded_cfg['data_dir'],row_id,output)
         q=load_query(output);chosen.append({'context':q.context,'target':q.target,'query_id':q.query_id,'file':str(output)})
     if not chosen:raise ValueError('No eligible IFNG development queries in completed P4 data')
+    deployed=Registry(registry);coverage=[]
+    for case in chosen:
+        q=load_query(case['file']);capabilities=deployed.candidates(q)
+        for variant in ('reference','expanded'):
+            for method in ('string_ridge','factor_rank16','factor_rank32'):
+                name=variant+'_'+method
+                if not capabilities[name]['supported']:
+                    raise ValueError('Real data input unsupported by matched predictor: '+name+' / '+q.target)
+        coverage.append({'query_id':q.query_id,'context':q.context,'target':q.target,'candidates':capabilities})
+    freeze(root/'real_data_readiness.json',{'matched_predictors':6,'registered_tools':len(deployed.experts),
+        'queries':coverage,'annotation_sha256':annotation_shas[0],'no_new_model_training':True,
+        'reference_donors':'same-target fit-only cross-context donors required; unavailable references remain disabled',
+        'independent_effectiveness_evaluated':False,'test_evaluated':False})
     freeze(root/'cases.json',{'selection':'first identifier-sorted training row per development background; no response decoding',
         'cases':chosen,'metadata_sha256':file_sha256(metadata),'in_sample_possible':True,'test_evaluated':False})
     return registry

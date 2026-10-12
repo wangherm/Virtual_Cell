@@ -50,7 +50,7 @@ def package_review(root):
     root=Path(root);names={'expert.json','registry.json','profile.json','result.json','trace.json',
                          'stage.json','manifest.json','lineage.json','COMPLETE.json','plan.json',
                          'configuration.json','provider_summary.json','PLANNER_ERROR.json','summary.json',
-                         'INCOMPLETE.json','cases.json','inputs.json','counter.json'}
+                         'INCOMPLETE.json','cases.json','inputs.json','counter.json','real_data_readiness.json'}
     path=root/'model_agent_review_light.tar.gz';entries={}
     with tarfile.open(path,'w:gz') as tar:
         for p in sorted(root.rglob('*.json')):
