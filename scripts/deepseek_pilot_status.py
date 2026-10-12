@@ -17,6 +17,9 @@ def main():
         if records:
             last=records[-1];print(audit.name,'requests=',len(records),'last=',last['status'],'started=',last.get('started_at'),
                                   'model=',last.get('returned_model',last.get('requested_model')))
+            if last['status']=='failed':
+                print('Failure:',json.dumps({key:last.get(key) for key in ('http_status','failure_category','error_type',
+                    'finish_reason','action','final_format','json_error')},indent=2))
     if (root/'COMPLETE.json').exists():print('PILOT COMPLETE:',root/'model_agent_review_light.tar.gz')
 
 

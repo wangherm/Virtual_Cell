@@ -4,6 +4,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 import os
+import re
 from pathlib import Path
 from time import perf_counter
 from urllib.parse import urlsplit
@@ -32,6 +33,8 @@ Finish explicitly with ONE already executed expert, or abstain if no acceptable 
 When remaining_steps or api_remaining_calls is 1, finish an existing prediction or abstain.
 Give a concise evidence-based reason, at most 2000 characters. No shell, browsing, file
 access, secrets, private labels or training. No markdown, extra keys or hidden reasoning.
+The final content must begin with { and end with }. Use valid double-quoted JSON
+strings with escaped newlines; do not add code fences, comments or explanation outside JSON.
 '''
 
 
@@ -42,6 +45,24 @@ def normalize_url(value):
     return value
 
 
+def action_text(text):
+    """Remove only lossless whole-answer wrappers, never repair JSON/action data."""
+    value=text.strip()
+    if value.startswith('\ufeff'):value=value[1:].strip()
+    match=re.fullmatch(r'```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```',value,flags=re.IGNORECASE)
+    if match:value=match.group(1).strip()
+    if value.startswith('\ufeff'):value=value[1:].strip()
+    return value
+
+
+def output_diagnostic(text):
+    value=text.strip()
+    kind=('bom' if value.startswith('\ufeff') else 'markdown_fence' if value.startswith('```')
+          else 'json_object' if value.startswith('{') else 'other_text')
+    return {'characters':len(text),'sha256':digest(text),'prefix_kind':kind,
+            'outer_wrapper_removed':action_text(text)!=text.strip()}
+
+
 def strict_json(text):
     def pairs(items):
         value={}
@@ -49,7 +70,7 @@ def strict_json(text):
             if key in value:raise ValueError('Duplicate action key')
             value[key]=item
         return value
-    value=json.loads(text,object_pairs_hook=pairs)
+    value=json.loads(action_text(text),object_pairs_hook=pairs)
     if not isinstance(value,dict) or set(value)!={'tool','expert_id','reason'}:raise ValueError('Exact action JSON keys required')
     if not isinstance(value['tool'],str) or not isinstance(value['reason'],str) or not (value['expert_id'] is None or isinstance(value['expert_id'],str)):
         raise ValueError('Invalid action field types')
@@ -155,7 +176,7 @@ class DeepSeekPlanner:
             {'role':'user','content':json.dumps(payload,ensure_ascii=False,allow_nan=False)}],
             'response_format':{'type':'json_object'},'thinking':{'type':'enabled'},
             'reasoning_effort':self.config['reasoning_effort'],'max_tokens':self.config['max_output_tokens'],'stream':False}
-        started=perf_counter()
+        started=perf_counter();content=None
         try:
             response=self.client.post(self.config['base_url']+'/chat/completions',json=body,
                 headers={'Authorization':'Bearer '+api_key,'Content-Type':'application/json'},
@@ -173,6 +194,7 @@ class DeepSeekPlanner:
             if choice.get('finish_reason')!='stop':raise RuntimeError('incomplete_response')
             content=choice['message'].get('content')
             if not isinstance(content,str) or not content.strip():raise RuntimeError('empty_response')
+            record['final_format']=output_diagnostic(content)
             # Do not read/log/forward reasoning_content, response bodies or prompts.
             action=strict_json(content)
             record['action']={'tool':action.tool,'expert_id':action.expert_id}
@@ -180,7 +202,11 @@ class DeepSeekPlanner:
             record['status']='accepted';record['action']={'tool':action.tool,'expert_id':action.expert_id}
         except Exception as exc:
             record['status']='failed';record['error_type']=type(exc).__name__
-            category=str(exc) if isinstance(exc,RuntimeError) and str(exc) in ('http_error','incomplete_response','empty_response') else 'transport_or_invalid_action'
+            if isinstance(exc,json.JSONDecodeError):
+                record['json_error']={'message':exc.msg,'position':exc.pos,'line':exc.lineno,'column':exc.colno}
+                category='invalid_json'
+            elif isinstance(exc,ValueError):category='invalid_action'
+            else:category=str(exc) if isinstance(exc,RuntimeError) and str(exc) in ('http_error','incomplete_response','empty_response') else 'transport_or_response_error'
             record['failure_category']=category;record['latency_seconds']=perf_counter()-started
             write_json(path,record);self._event(record);self.last_call=record
             # Do not expose request headers, provider bodies or credential-bearing exceptions.

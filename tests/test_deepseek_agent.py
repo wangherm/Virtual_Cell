@@ -9,7 +9,7 @@ import requests
 
 from vcell.model_agent.artifacts import read, verify
 from vcell.model_agent.contracts import Action
-from vcell.model_agent.deepseek import DeepSeekPlanner, list_models
+from vcell.model_agent.deepseek import DeepSeekPlanner, list_models, strict_json
 from vcell.model_agent.demo import make_demo
 from vcell.model_agent.runtime import execute
 
@@ -134,6 +134,34 @@ def test_three_round_pilot_resume_and_review_hashes(tmp_path):
 
 def test_model_discovery_only_uses_metadata():
     assert list_models(client=Client([]))[0]['id']=='deepseek-v4-pro'
+
+
+@pytest.mark.parametrize('prefix,suffix',[('```json\n','\n```'),('```JSON\r\n','\r\n```'),('```\n','\n```'),('\ufeff','')])
+def test_complete_json_wrappers_do_not_change_action_or_charge_extra_requests(tmp_path,prefix,suffix):
+    raw=json.dumps({'tool':'predict','expert_id':'fast_linear','reason':'Allowed evidence'})
+    client=Client([reply(content=prefix+raw+suffix)]);planner=DeepSeekPlanner(tmp_path/'api',client=client)
+    assert planner.decide(obs())==strict_json(raw)
+    assert len(client.calls)==1 and planner.summary()['attempted_requests']==1
+    assert read(tmp_path/'api/attempt_0001.json')['final_format']['outer_wrapper_removed'] is True
+
+
+@pytest.mark.parametrize('text',[
+    'Here is my answer:\n```json\n{"tool":"abstain","expert_id":null,"reason":"none"}\n```',
+    '```json\n{"tool":"abstain","expert_id":null,"reason":"none"}\n```\nMore advice',
+    '```json\n{"tool":"abstain","expert_id":null,"reason":"none",}\n```',
+    '```json\n{"tool":"abstain","tool":"predict","expert_id":null,"reason":"none"}\n```',
+])
+def test_no_prose_extraction_json_repair_or_duplicate_key_relaxation(text):
+    with pytest.raises(ValueError):strict_json(text)
+
+
+def test_invalid_json_records_safe_format_diagnostics(tmp_path):
+    planner=DeepSeekPlanner(tmp_path/'api',client=Client([reply(content='Not JSON PRIVATE_FINAL_TEXT')]))
+    with pytest.raises(RuntimeError,match='invalid_json'):planner.decide(obs())
+    record=read(tmp_path/'api/attempt_0001.json')
+    assert record['json_error']['position']==0 and record['final_format']['prefix_kind']=='other_text'
+    assert record['input_tokens']==50 and record['output_tokens']==30
+    assert 'PRIVATE_FINAL_TEXT' not in json.dumps(record)
 
 
 def test_deleted_attempt_cannot_reset_request_budget(tmp_path):

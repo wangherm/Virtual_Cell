@@ -125,6 +125,25 @@ experts, premature finish and over-budget actions stop explicitly. No automatic
 retry, JSON repair, model downgrade or rule fallback occurs. Local tool failures
 are recorded for the controller's next observation.
 
+## HTTP 200 followed by JSONDecodeError
+
+This means the API returned a normally ended answer, but its final `content`
+could not be parsed as the action JSON. It is distinct from authentication,
+network, quota or token truncation. The first reported failure's final text was
+not retained, so its exact formatting cannot be established retrospectively.
+
+The parser now removes only a complete outer Markdown JSON code fence or leading
+BOM. It does not extract JSON from arbitrary prose, repair syntax, add fields,
+choose a substitute action or make an extra provider request. Duplicate/extra
+keys and unsupported/over-budget actions still fail. The prompt also explicitly
+requires the final answer to begin/end with braces.
+
+`final_format` records a format class, length and digest; `json_error` records
+parse position/line/column. Raw final text, reasoning and credentials are not
+logged. The status command prints these fields on failure. After this code/prompt
+update, use a fresh `--name deepseek_pilot_02 --rounds 3`; `_01` retains its
+existing attempt and token audit. Its frozen code/prompt identity is not resumed.
+
 ## Costs and failed attempts
 
 Every POST attempt is reserved durably before transmission, including failed or
