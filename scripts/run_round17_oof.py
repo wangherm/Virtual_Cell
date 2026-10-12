@@ -64,7 +64,7 @@ def dispatch(specs,root,parallel,label,stage):
     if any(outcome.values()):raise RuntimeError(label+' failed; inspect logs and resume identical command')
 
 
-def prepared_inputs(a,parent,root):
+def prepared_inputs(a,parent,root,freeze_inputs=True):
     verify_files(parent)
     template=parent/'models'/f'context_expanded_seed{a.parent_seed}'
     verify_files(template);cfg=read(template/'manifest.json')['config']
@@ -86,7 +86,9 @@ def prepared_inputs(a,parent,root):
             label=f'{context}_seed{seed}';folds=[]
             for number,held in enumerate([context]+inner):
                 final=number==0;excluded=[context] if final else [context,held]
-                queries=cases(data['meta'],held,htargets,a.targets_per_context)
+                count=a.targets_per_context if final else getattr(a,'profile_targets',a.targets_per_context)
+                if count==0:count=int(data['meta'].loc[data['meta'].context.eq(held),'perturbation'].nunique())
+                queries=cases(data['meta'],held,htargets,count)
                 foldname=label+('_outer' if final else f'_inner{number}')
                 configs={}
                 for variant in ('reference','expanded'):
@@ -108,7 +110,7 @@ def prepared_inputs(a,parent,root):
         'query_selection':'identifier-hash targets balanced held-target/seen-target; all technical rows retained',
         'outer_training':'Final refits use only source fit/calibration/diagnostic rows; held-out controls used only at inference',
         'test_evaluated':False}
-    freeze(root/'inputs.json',inputs)
+    if freeze_inputs:freeze(root/'inputs.json',inputs)
     return data,plans,bs,ws
 
 
@@ -130,11 +132,11 @@ def query_path(data,row,root,cfg):
     return dest
 
 
-def evidence_for(plan,data,root,pools,extra=None,suffix='base'):
+def evidence_for(plan,data,root,pools,extra=None,suffix='base',include_zero=False):
     dest=root/'evidence'/plan['name']/suffix;dest.mkdir(parents=True,exist_ok=True)
     episodes=[]
     for fold in plan['folds'][1:]:
-        registry=Registry(pools[fold['name']]);models={n:e.path for n,e in registry.experts.items() if e.card['kind']=='p4'}
+        registry=Registry(pools[fold['name']]);models={n:e.path for n,e in registry.experts.items() if e.card['kind']=='p4' or include_zero and e.card['kind']=='zero'}
         if extra:models.update(extra[fold['name']])
         for row in fold['query_rows']:
             qp=query_path(data,row,root,fold['configs']['expanded']);q=load_query(qp)

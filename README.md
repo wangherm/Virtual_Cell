@@ -26,6 +26,11 @@ cell-line-held experts, measured capability profiles, paired routing baselines,
 and optional bounded DeepSeek prediction-head code trials. Outer labels never
 enter proposal or routing observations. No improvement is claimed by a connectivity pilot.
 
+[Round18 Virtual Cell Scientist](docs/ROUND18_SCIENTIST.md) adds a selectable zero
+expert, source-scoped SQLite memory, traceable Europe PMC abstract retrieval,
+literature/no-literature/random/fixed search controls and paired conservative
+routing tests. It reuses exact completed source fits and preserves private outer evaluation.
+
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
 ```

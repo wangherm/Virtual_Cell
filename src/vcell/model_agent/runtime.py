@@ -103,6 +103,9 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
             candidate['estimated_mse']=profiles.risk(name,registry.experts[name].features(q)) if profiles and candidate['supported'] else None
             candidate['profile_missing']=candidate['estimated_mse'] is None
             if formal_outer:candidate['source_features']=registry.experts[name].features(q)
+            if profiles:
+                evidence=profiles.explain(name,registry.experts[name].features(q))
+                if evidence is not None:candidate['source_reliability']=evidence
         observation={'task':q.public,'candidates':candidates,'remaining_units':max(0.,budget_units-state['spent_units']),
             'inspection_cost':inspection_cost,'inspected':state['inspected'],'predictions':state['predictions'],
             'failed_experts':state['failed_experts'],'remaining_steps':max_steps-state['steps']}

@@ -119,6 +119,16 @@ class Profiles:
         model=self.value['models'][name]
         x=np.array([features[key] for key in FEATURES],float)
         z=np.r_[1.,(x-np.array(model['mean']))/np.array(model['scale'])]
+        if 'clip_z' in model:z[1:]=np.clip(z[1:],-model['clip_z'],model['clip_z'])
         value=float(np.exp(np.clip(z@model['coef'],-25,15)))
         if not np.isfinite(value):raise ValueError('Invalid estimated risk')
         return value
+
+    def explain(self,name,features):
+        model=self.value['models'].get(name,{})
+        if 'capability' not in model:return None
+        from .reliability import estimate
+        safe=self.value['safe_routing']['models'][name];ratio,ood=estimate(safe,features)
+        return {'source_contexts':safe['contexts'],'relative_to_zero':ratio,'covariate_outside_source_support':ood,
+            'source_mse':safe['source_mse'],'residual_penalty':safe['residual_penalty'],
+            'uncertainty_note':'Heuristic support/penalty, not calibrated confidence or outer performance'}
