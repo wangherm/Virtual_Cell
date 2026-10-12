@@ -27,6 +27,17 @@ def protected(context):
 def context_key(value):return value.strip().upper()
 
 
+def cell_line_key(context,explicit='unknown'):
+    value=str(explicit).strip()
+    if value.lower() in ('','unknown','unspecified','nan','none'):value=str(context).strip()
+    value=value.upper()
+    if value.endswith('_IFNG'):value=value[:-5]
+    return value
+
+
+def known_condition(value):return str(value).strip().lower() not in ('','unknown','unspecified','nan','none')
+
+
 @dataclass(frozen=True)
 class Query:
     query_id: str
@@ -41,12 +52,16 @@ class Query:
     normalization: str=NORMALIZATION
     source_partition: str='unlabelled'
     source_fingerprint: str | None=None
+    study: str='unknown'
+    time: str='unknown'
+    batch: str='unknown'
+    cell_line: str='unknown'
 
     def __post_init__(self):
         if not isinstance(self.query_id,str) or not self.query_id or len(self.query_id)>256:raise ValueError('Explicit bounded query ID required')
-        if any(not isinstance(v,str) or not v.strip() for v in (self.context,self.target,self.stimulus)):
+        if any(not isinstance(v,str) or not v.strip() for v in (self.context,self.target,self.stimulus,self.study,self.time,self.batch,self.cell_line)):
             raise ValueError('Explicit context, target and stimulus required')
-        if protected(self.context):raise ValueError('Reserved background remains closed')
+        if protected(self.context) or protected(self.cell_line):raise ValueError('Reserved background remains closed')
         if self.source_partition not in ('train','val','unlabelled'):raise ValueError('Invalid query source partition')
         if self.source_fingerprint is not None and (len(self.source_fingerprint)!=64 or any(c not in '0123456789abcdef' for c in self.source_fingerprint)):
             raise ValueError('Invalid query source fingerprint')
@@ -64,7 +79,8 @@ class Query:
     @property
     def public(self):
         # The planner receives explicit task metadata; no paths, labels or matrix.
-        return {key:getattr(self,key) for key in ('query_id','context','target','stimulus','species','modality','output')}
+        return {key:getattr(self,key) for key in ('query_id','context','target','stimulus','species','modality','output',
+                                                  'study','time','batch','cell_line')}
 
 
 def load_query(path):

@@ -96,6 +96,11 @@ class DeepSeekPlanner:
     nor needed in later requests. This uses JSON mode with strict LOCAL validation.
     API failures, truncated answers and invalid actions are never silently repaired.
     """
+    instructions=INSTRUCTIONS
+
+    def parse_action(self,content,observation):
+        action=strict_json(content);validate_action(action,observation);return action
+
     def __init__(self,audit_dir,model=DEFAULT_MODEL,*,base_url=DEFAULT_URL,reasoning_effort='max',
                  max_output_tokens=8192,max_api_calls=8,timeout=180.,client=None):
         if not isinstance(model,str) or not model.strip() or reasoning_effort not in ('low','high','max'):
@@ -105,7 +110,7 @@ class DeepSeekPlanner:
         self.config={'provider':'deepseek','model':model,'base_url':normalize_url(base_url),
             'reasoning_effort':reasoning_effort,'thinking':'enabled','max_output_tokens':max_output_tokens,
             'max_api_calls':max_api_calls,'timeout_seconds':timeout,'protocol':'chat_completions_json',
-            'prompt_sha256':digest(INSTRUCTIONS)}
+            'prompt_sha256':digest(self.instructions)}
         self.identity='deepseek_json:v1:'+digest(self.config)
         self.last_call=None;self.audit.mkdir(parents=True,exist_ok=True)
         path=self.audit/'configuration.json'
@@ -130,6 +135,7 @@ class DeepSeekPlanner:
             'known_input_tokens':sum(r.get('input_tokens') or 0 for r in records),
             'known_output_tokens':sum(r.get('output_tokens') or 0 for r in records),
             'known_reasoning_tokens':sum(r.get('reasoning_tokens') or 0 for r in records),
+            'known_api_latency_seconds':sum(r.get('latency_seconds') or 0. for r in records),
             'unknown_usage_attempts':sum(r.get('input_tokens') is None or r.get('output_tokens') is None for r in records),
             'returned_models':sorted({r['returned_model'] for r in records if r.get('returned_model')}),
             'usage_note':'Output tokens include reasoning; reasoning tokens are a subset, not an added charge. No currency estimate.'}
@@ -155,7 +161,7 @@ class DeepSeekPlanner:
             value=read(cache);body={k:v for k,v in value.items() if k!='sha256'}
             if value['sha256']!=digest(body) or value['identity']!=self.identity or value['observation']!=key:
                 raise ValueError('Cached provider decision identity/checksum mismatch')
-            action=strict_json(json.dumps(value['action']));validate_action(action,observation)
+            action=self.parse_action(json.dumps(value['action']),observation)
             self.last_call={**value['metadata'],'cached_decision':True};return action
         count=self.summary()['attempted_requests']
         # This instance now owns an existing, validated ledger (also when the
@@ -172,7 +178,7 @@ class DeepSeekPlanner:
         write_json(self.audit/'counter.json',{'reserved_attempts':number});self._event(record)
         print(f'DEEPSEEK REQUEST {number}/{self.config["max_api_calls"]} model={self.config["model"]} effort={self.config["reasoning_effort"]}',flush=True)
         payload=copy.deepcopy(observation);payload['api_remaining_calls']=self.config['max_api_calls']-count
-        body={'model':self.config['model'],'messages':[{'role':'system','content':INSTRUCTIONS},
+        body={'model':self.config['model'],'messages':[{'role':'system','content':self.instructions},
             {'role':'user','content':json.dumps(payload,ensure_ascii=False,allow_nan=False)}],
             'response_format':{'type':'json_object'},'thinking':{'type':'enabled'},
             'reasoning_effort':self.config['reasoning_effort'],'max_tokens':self.config['max_output_tokens'],'stream':False}
@@ -196,9 +202,8 @@ class DeepSeekPlanner:
             if not isinstance(content,str) or not content.strip():raise RuntimeError('empty_response')
             record['final_format']=output_diagnostic(content)
             # Do not read/log/forward reasoning_content, response bodies or prompts.
-            action=strict_json(content)
+            action=self.parse_action(content,observation)
             record['action']={'tool':action.tool,'expert_id':action.expert_id}
-            validate_action(action,observation)
             record['status']='accepted';record['action']={'tool':action.tool,'expert_id':action.expert_id}
         except Exception as exc:
             record['status']='failed';record['error_type']=type(exc).__name__

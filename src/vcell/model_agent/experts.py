@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from .artifacts import arrays, read, seal, verify
-from .contracts import FEATURES, NORMALIZATION, context_key, digest, protected, safe_name
+from .contracts import FEATURES, NORMALIZATION, cell_line_key, context_key, digest, known_condition, protected, safe_name
 from ..utils import file_sha256, write_json
 
 
@@ -15,7 +15,7 @@ class Expert:
     def __init__(self,path):
         self.path=Path(path).resolve();verify(self.path);self.card=read(self.path/'expert.json')
         safe_name(self.card['expert_id'])
-        if self.card['kind'] not in ('p4','reference','zero','demo_linear'):raise ValueError('Unimplemented expert kind')
+        if self.card['kind'] not in ('p4','candidate','reference','zero','demo_linear'):raise ValueError('Unimplemented expert kind')
         self.stats=arrays(self.path/'input.npz')
         n=len(self.stats['genes'])
         if n<1 or len(set(self.stats['genes']))!=n:raise ValueError('Invalid expert output panel')
@@ -23,7 +23,8 @@ class Expert:
             if self.stats[key].shape!=(n,) or not np.isfinite(self.stats[key]).all():raise ValueError('Invalid expert control statistics')
         if (self.stats['control_std']<=0).any():raise ValueError('Invalid expert control scale')
         self.provenance=self.card['provenance']
-        if any(protected(c) for c in self.provenance['fit_contexts']+self.provenance['calibration_contexts']):
+        if any(protected(c) for c in self.provenance['fit_contexts']+self.provenance['calibration_contexts']+
+               self.provenance.get('fit_cell_lines',[])+self.provenance.get('calibration_cell_lines',[])):
             raise ValueError('Reserved source in expert fitting')
         self.marker_sha=file_sha256(self.path/'COMPLETE.json')
 
@@ -31,13 +32,31 @@ class Expert:
         if tuple(self.stats['genes'])!=tuple(q.genes):return False,'gene panel/order mismatch'
         if q.normalization!=self.card['normalization']:return False,'normalization mismatch'
         if q.species not in self.card['species'] or q.modality not in self.card['modalities']:return False,'unsupported task'
-        if self.card['kind']=='p4' and q.target not in self.stats['targets']:return False,'target annotation unavailable'
+        if self.card['kind'] in ('p4','candidate') and q.target not in self.stats['targets']:return False,'target annotation unavailable'
         if self.card['kind']=='reference' and not self.donors(q).any():return False,'no fit-only same-target cross-context reference'
         return True,'supported; empirical accuracy is assessed separately'
 
     def donors(self,q):
         if 'reference_targets' not in self.stats:return np.zeros(0,bool)
-        return (self.stats['reference_targets']==q.target)&np.array([context_key(c)!=context_key(q.context) for c in self.stats['reference_contexts']])
+        mask=(self.stats['reference_targets']==q.target)
+        # Unknown conditions are not evidence of comparability. Legacy banks
+        # without these fields are unavailable until explicitly re-exported.
+        fields={'study':q.study,'stimulus':q.stimulus,'time':q.time,'modality':q.modality,'batch':q.batch}
+        for field,value in fields.items():
+            key='reference_'+field
+            if key not in self.stats or not known_condition(value):return np.zeros(len(mask),bool)
+            mask &= np.array([known_condition(x) and context_key(str(x))==context_key(value) for x in self.stats[key]])
+        lines=self.stats.get('reference_cell_lines',self.stats['reference_contexts'])
+        mask &= np.array([cell_line_key(str(x))!=cell_line_key(q.context,q.cell_line) for x in lines])
+        return mask
+
+    def diagnostics(self,q):
+        p=self.provenance;line=cell_line_key(q.context,q.cell_line)
+        return {'query_in_expert_fit':q.query_id in p['fit_query_ids'],
+                'query_in_expert_calibration':q.query_id in p['calibration_query_ids'],
+                'query_context_in_fit':context_key(q.context) in {context_key(c) for c in p['fit_contexts']},
+                'query_cell_line_in_fit':line in {cell_line_key(c) for c in p.get('fit_cell_lines',p['fit_contexts'])},
+                'query_cell_line_in_calibration':line in {cell_line_key(c) for c in p.get('calibration_cell_lines',p['calibration_contexts'])}}
 
     def features(self,q):
         distance=np.sqrt(np.mean(np.square((np.asarray(q.control)-self.stats['control_mean'])/self.stats['control_std'])))
@@ -75,7 +94,13 @@ class Expert:
         tr=arrays(self.path/'transforms.npz');ix=list(self.stats['targets']).index(q.target)
         raw=self.stats['relations'][ix:ix+1]
         t=np.c_[((raw-tr['mean'])@tr['axes'].T/tr['scale']).astype(np.float32),(raw.sum(1)>0).astype(np.float32)]
-        if self.card['method']=='string_ridge':
+        if self.card['kind']=='candidate':
+            from .candidate_code import build_head
+            f=torch.load(self.path/'model.pt',map_location='cpu',weights_only=True)
+            model=build_head((self.path/'head.py').read_text(encoding='utf-8'),f['target_dim'],f['background_dim'],f['rank'])
+            model.load_state_dict(f['state']);model.eval()
+            coefficients=model(torch.tensor(t),torch.tensor(b)).numpy()
+        elif self.card['method']=='string_ridge':
             from ..round12 import design
             f=arrays(self.path/'model.npz');design_values=(design(b,t,True)-tr['xmean'])/tr['xscale']
             coefficients=design_values@f['coef']+f['intercept']
@@ -108,7 +133,7 @@ class Registry:
 
     def candidates(self,q):
         return {name:{'expert_id':name,'kind':e.card['kind'],'cost_units':self.costs[name],
-                      'supported':e.compatible(q)[0],'reason':e.compatible(q)[1]}
+                      'supported':e.compatible(q)[0],'reason':e.compatible(q)[1],**e.diagnostics(q)}
                 for name,e in self.experts.items()}
 
 
@@ -129,15 +154,28 @@ def export_p4(worker_path,output,methods=('string_ridge','factor_rank16','factor
         raise ValueError('Expert external dependency changed')
     fit=np.asarray(cfg['partition']['fit'],int);cal=np.asarray(cfg['partition']['calibration'],int)
     meta=data['meta'].iloc[fit].reset_index(drop=True);calmeta=data['meta'].iloc[cal]
-    groups=meta.groupby(['perturbation','context'],sort=True).indices
+    for field in ('dataset','stimulus','time','modality','batch'):
+        if field not in meta:meta[field]='unknown'
+        meta[field]=meta[field].fillna('unknown').astype(str)
+    # Never pool incompatible batches/conditions and then claim a matched donor.
+    groups=meta.groupby(['perturbation','context','dataset','stimulus','time','modality','batch'],sort=True).indices
     references={
         'reference_targets':np.array([key[0] for key in groups],dtype='U'),
         'reference_contexts':np.array([key[1] for key in groups],dtype='U'),
         'reference_delta':np.stack([data['delta'][fit[ix]].mean(0) for ix in groups.values()])}
+    for field,column in [('study','dataset'),('stimulus','stimulus'),('time','time'),('modality','modality'),('batch','batch')]:
+        values=[]
+        for ix in groups.values():
+            observed=set(meta.iloc[ix][column].fillna('unknown').astype(str)) if column in meta else {'unknown'}
+            values.append(next(iter(observed)) if len(observed)==1 else 'unknown')
+        references['reference_'+field]=np.array(values,dtype='U')
+    references['reference_cell_lines']=np.array([cell_line_key(key[1],meta.iloc[ix[0]].get('cell_line','unknown')) for key,ix in groups.items()],dtype='U')
     provenance={'source':'P4 fit artifacts','data_fingerprint':manifest['data'],'parent_complete_sha':file_sha256(parent/'COMPLETE.json'),
         'fit_contexts':sorted(set(meta.context)),'calibration_contexts':sorted(set(calmeta.context)),
         'fit_targets':sorted(set(meta.perturbation)),'fit_query_ids':meta.row_id.tolist(),
         'calibration_query_ids':calmeta.row_id.tolist(),'protocol':cfg['protocol'],'seed':cfg['seed'],
+        'fit_cell_lines':sorted({cell_line_key(row.context,row.get('cell_line','unknown')) for _,row in meta.iterrows()}),
+        'calibration_cell_lines':sorted({cell_line_key(row.context,row.get('cell_line','unknown')) for _,row in calmeta.iterrows()}),
         'source_oof_claim':'not automatic; query background must be excluded from fitting and calibration'}
     relations=arrays(cfg['relations']);lookup={str(p):i for i,p in enumerate(relations['perturbations'])}
     if not np.array_equal(relations['genes'],data['genes']):raise ValueError('Expert relation panel changed')
@@ -161,7 +199,8 @@ def export_p4(worker_path,output,methods=('string_ridge','factor_rank16','factor
               'species':['human'],'modalities':['CRISPRi'],'normalization':NORMALIZATION,
               'provenance':provenance,'recipe':{'method':method,'variant':cfg['variant'],'steps':cfg['max_steps'],
                   'basis_rank':16 if method=='factor_rank16' else 32,'max_batch':cfg['batch_size'],
-                  'annotation_sha256':manifest['relations'],'normalization':NORMALIZATION,'genes':data['genes'].tolist()},'synthetic':False,
+                  'annotation_sha256':manifest['relations'],'normalization':NORMALIZATION,'genes':data['genes'].tolist(),
+                  'reference_policy':'known identical study/stimulus/modality/time/batch, distinct cell line'},'synthetic':False,
               'annotation_vocabulary':'full frozen shared P4 cache; training targets remain separate in provenance'}
         if method!='reference':
             folder=parent/method;verify_files(folder)

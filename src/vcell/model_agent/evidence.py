@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from .artifacts import arrays, read, seal, verify
-from .contracts import FEATURES, context_key, load_query, protected
+from .contracts import FEATURES, cell_line_key, context_key, load_query, protected
 from .experts import Expert
 from ..utils import file_sha256, write_json
 
@@ -17,12 +17,14 @@ def fit_profiles(spec_path,output,alpha=.1):
     """
     if not np.isfinite(alpha) or alpha<=0:raise ValueError('Positive ridge regularization required')
     path=Path(spec_path).resolve();spec=read(path)
-    if set(spec)!={'source_contexts','excluded_contexts','episodes'}:raise ValueError('Invalid evidence specification')
+    required={'source_contexts','excluded_contexts','episodes'}
+    if not required<=set(spec) or set(spec)-required-{'excluded_cell_lines'}:raise ValueError('Invalid evidence specification')
     source={context_key(c) for c in spec['source_contexts']};excluded={context_key(c) for c in spec['excluded_contexts']}
+    excluded_lines={cell_line_key(c) for c in spec.get('excluded_cell_lines',spec['excluded_contexts'])}
     if not source or source&excluded or any(protected(c) for c in source):raise ValueError('Invalid source-only evidence boundary')
     root=Path(output)
     if root.exists() and any(root.iterdir()):raise ValueError('Choose new profile directory')
-    samples=[];lineage=[];recipes={};synthetic=False;panel=None
+    samples=[];lineage=[];recipes={};synthetic=False;panel=None;predictions=[]
     for episode in spec['episodes']:
         if set(episode)!={'bundle','query','truth','fold_id'}:raise ValueError('Invalid OOF episode')
         expert=Expert(path.parent/episode['bundle']);q=load_query(path.parent/episode['query'])
@@ -33,6 +35,11 @@ def fit_profiles(spec_path,output,alpha=.1):
         if panel!=list(q.genes):raise ValueError('OOF output panel changed across queries')
         if context_key(q.context) not in source or context_key(q.context) in excluded:raise ValueError('Evidence query outside source-only boundary')
         p=expert.provenance
+        line=cell_line_key(q.context,q.cell_line)
+        fit_lines={cell_line_key(c) for c in p.get('fit_cell_lines',p['fit_contexts'])}
+        cal_lines={cell_line_key(c) for c in p.get('calibration_cell_lines',p['calibration_contexts'])}
+        if line in fit_lines|cal_lines or line in excluded_lines or (fit_lines|cal_lines)&excluded_lines:
+            raise ValueError('OOF/outer cell line participated in training or calibration across contexts or studies')
         if (context_key(q.context) in {context_key(c) for c in p['fit_contexts']+p['calibration_contexts']} or
                 q.query_id in p['fit_query_ids']+p['calibration_query_ids']):
             raise ValueError('OOF query participated in expert training or calibration')
@@ -47,6 +54,7 @@ def fit_profiles(spec_path,output,alpha=.1):
         y=truth['delta']
         if y.shape!=(len(q.genes),) or not np.isfinite(y).all():raise ValueError('Invalid OOF response')
         prediction=expert.predict(q);features=expert.features(q)
+        predictions.append((expert.card['expert_id'],q,prediction))
         if prediction.shape!=y.shape or not np.isfinite(prediction).all():raise ValueError('Invalid OOF prediction')
         samples.append({'expert_id':name,'query_id':q.query_id,'context':context_key(q.context),'target':q.target,
                         'query_fingerprint':q.fingerprint,'fold_id':episode['fold_id'],'mse':float(np.square(prediction-y).mean()),**features})
@@ -77,9 +85,15 @@ def fit_profiles(spec_path,output,alpha=.1):
     fixed=min(fixed_scores,key=lambda name:(fixed_scores[name],name))
     ceiling=frame.groupby('query_id').mse.min().mean()
     root.mkdir(parents=True,exist_ok=True)
+    from .artifacts import save_prediction
+    from .contracts import digest
+    for name,q,prediction in predictions:
+        folder=root/'private_predictions'/name;folder.mkdir(parents=True,exist_ok=True)
+        save_prediction(folder/('q_'+digest(q.query_id)[:16]+'.npz'),q,prediction)
     write_json(root/'profile.json',{'schema_version':1,'features':FEATURES,'models':models,'fixed_expert':fixed,
         'fixed_source_mse':fixed_scores,'source_contexts':sorted(source),'excluded_contexts':sorted(excluded),
         'fit_alpha':alpha,'synthetic':synthetic,'genes':panel,
+        'excluded_cell_lines':sorted(excluded_lines),
         'scope':'Supplied nested source OOF bundles; background-disjoint checks, not independent reproduction of refitting',
         'risk':'log-MSE Ridge; extrapolation risk is not a calibrated confidence interval',
         'no_outer_selection':True})

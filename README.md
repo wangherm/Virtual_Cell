@@ -21,7 +21,10 @@ checks source-OOF capability evidence, supports budgeted tool calls and checkpoi
 recovery, and separates private evaluation from planning. A synthetic offline
 demo exercises fixed/rule/risk/workflow baselines. [Live DeepSeek pilots](docs/LIVE_DEEPSEEK_PILOT.md)
 now connect the actual API to this controller. The formal IFNG policy comparison
-is a subsequent stage; no agent improvement is claimed by a connectivity pilot.
+uses [Round17 nested source OOF](docs/ROUND17_SOURCE_OOF_AGENT.md): newly refitted
+cell-line-held experts, measured capability profiles, paired routing baselines,
+and optional bounded DeepSeek prediction-head code trials. Outer labels never
+enter proposal or routing observations. No improvement is claimed by a connectivity pilot.
 
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01

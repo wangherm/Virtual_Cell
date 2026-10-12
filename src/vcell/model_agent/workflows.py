@@ -39,8 +39,10 @@ def query_from_prepared(data_path,row_id,output):
     # Decode only baseline/genes. The response member is never read here.
     with np.load(root/'dataset.npz',allow_pickle=False) as data:
         genes=tuple(data['genes'].tolist());baseline=tuple(data['baseline'][i].tolist())
+    def condition(field):return str(row.get(field,'unknown')).strip() or 'unknown'
     q=Query(str(row_id),row.context,row.perturbation,row.get('stimulus','unspecified'),genes,baseline,
-            source_partition=row.split,source_fingerprint=audit['fingerprint'])
+            source_partition=row.split,source_fingerprint=audit['fingerprint'],study=condition('dataset'),
+            time=condition('time'),batch=condition('batch'),cell_line=condition('cell_line'))
     dest=Path(output)
     if dest.exists():raise ValueError('Query output already exists')
     write_json(dest,asdict(q));return dest

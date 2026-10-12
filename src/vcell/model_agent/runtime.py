@@ -30,7 +30,12 @@ class BaselinePlanner:
             candidates=[c for c in candidates if c['estimated_mse'] is not None]
         if self.policy=='fixed':candidates=[c for c in candidates if c['expert_id']==self.fixed]
         if not candidates:return Action('abstain',reason='No supported expert with required source evidence')
-        if self.policy=='rule':order=sorted(candidates,key=lambda c:(c['cost_units'],c['expert_id']))
+        if self.policy=='rule':
+            # Predeclared capability rule; names alone do not imply empirical accuracy.
+            def priority(c):
+                name=c['expert_id']
+                return (c['cost_units'],0 if name.endswith('string_ridge') else 1 if name.endswith('factor_rank16') else 2,name)
+            order=sorted(candidates,key=priority)
         else:order=sorted(candidates,key=lambda c:(c['estimated_mse'],c['expert_id']))
         predicted=observation['predictions'];available=[c for c in order if c['expert_id'] in predicted]
         if available and (self.policy!='workflow' or len(available)>=2):
@@ -46,7 +51,7 @@ class BaselinePlanner:
 
 
 def execute(registry_path,query_path,output,policy='rule',profile_path=None,budget_units=3.,max_steps=12,
-            resume=False,planner=None,planner_identity=None,inspection_cost=.05):
+            resume=False,planner=None,planner_identity=None,inspection_cost=.05,formal_outer=False):
     """Planner sees observations only; all model execution stays in this controller.
 
     Budget units are declared tool charges, not dollars or guaranteed wall time.
@@ -57,6 +62,18 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
         raise ValueError('Positive bounded execution budget required')
     registry=Registry(registry_path);q=load_query(query_path)
     profiles=Profiles(profile_path,registry) if profile_path else None
+    if formal_outer:
+        from .contracts import cell_line_key
+        if profiles is None:raise ValueError('Formal outer routing requires source-only profiles')
+        line=cell_line_key(q.context,q.cell_line)
+        if line not in {cell_line_key(c) for c in profiles.value.get('excluded_cell_lines',profiles.value['excluded_contexts'])}:
+            raise ValueError('Query cell line is not excluded from the source profiles')
+        for name,e in registry.experts.items():
+            if e.card['kind'] in ('p4','candidate','demo_linear') and name not in profiles.value['models']:
+                raise ValueError('Formal numerical expert lacks source OOF evidence: '+name)
+            d=e.diagnostics(q)
+            if d['query_in_expert_fit'] or d['query_in_expert_calibration'] or d['query_cell_line_in_fit'] or d['query_cell_line_in_calibration']:
+                raise ValueError('Formal query cell line/row leaked into expert fit/calibration: '+name)
     if planner is None:
         if policy in ('fixed','risk','workflow') and profiles is None:raise ValueError('This policy requires source OOF profiles')
         planner=BaselinePlanner(policy,profiles.value['fixed_expert'] if profiles else None)
@@ -66,6 +83,7 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
     identity={'query':q.fingerprint,'registry':registry.fingerprint,'profile':profiles.marker_sha if profiles else None,
               'budget_units':budget_units,'max_steps':max_steps,'inspection_cost':inspection_cost,
               'planner_identity':planner_identity,'source':code_identity()}
+    identity['formal_outer']=formal_outer
     manifest=root/'manifest.json'
     if manifest.exists():
         if not resume or read(manifest)!=identity:raise ValueError('Resume identical model-agent inputs or use a new directory')
@@ -83,6 +101,8 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
         candidates=registry.candidates(q)
         for name,candidate in candidates.items():
             candidate['estimated_mse']=profiles.risk(name,registry.experts[name].features(q)) if profiles and candidate['supported'] else None
+            candidate['profile_missing']=candidate['estimated_mse'] is None
+            if formal_outer:candidate['source_features']=registry.experts[name].features(q)
         observation={'task':q.public,'candidates':candidates,'remaining_units':max(0.,budget_units-state['spent_units']),
             'inspection_cost':inspection_cost,'inspected':state['inspected'],'predictions':state['predictions'],
             'failed_experts':state['failed_experts'],'remaining_steps':max_steps-state['steps']}
@@ -116,7 +136,10 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
         tick=time.perf_counter()
         try:
             if decision.tool=='inspect':
-                state['inspected'][name]=registry.experts[name].features(q);result=state['inspected'][name]
+                features=registry.experts[name].features(q)
+                identical=[other for other,value in state['inspected'].items() if value==features]
+                state['inspected'][name]=features;result={**features,'inspection_information_gain':
+                    {'new_feature_values':not formal_outer and not bool(identical),'identical_to':identical,'quality_evidence_added':False}}
             elif decision.tool=='predict':
                 path=root/(name+'.npz')
                 if not path.exists():save_prediction(path,q,registry.experts[name].predict(q))
@@ -143,12 +166,15 @@ def execute(registry_path,query_path,output,policy='rule',profile_path=None,budg
     result={'status':'selected' if selected else 'abstained','selected_expert':selected,'reason':state['stop_reason'],
             'spent_units':state['spent_units'],'budget_units':budget_units,'steps':state['steps'],
             'wall_seconds_this_session':time.perf_counter()-started,'planner_identity':planner_identity,
-            'scope':'Architecture validation; not a formal agent effectiveness experiment','test_evaluated':False,
+            'scope':'Nested development cell-line holdout' if formal_outer else 'Architecture validation; not a formal agent effectiveness experiment','test_evaluated':False,
             'synthetic':any(e.card['synthetic'] for e in registry.experts.values()),
             'cost_semantics':'Declared tool units; interrupted uncached execution can repeat physical compute. No hard wall-time guarantee.'}
+    result['evaluation_role']='outer_cell_line_holdout' if formal_outer else 'deployment_smoke'
+    result['diagnostics']={name:{**e.diagnostics(q),'profile_missing':profiles is None or name not in profiles.value['models']}
+                           for name,e in registry.experts.items()}
     if hasattr(planner,'summary'):
         result['provider_summary']=planner.summary()
-        result['scope']='Live API/model-execution pilot; not a formal agent effectiveness experiment'
+        result['scope']='Live nested development routing benchmark' if formal_outer else 'Live API/model-execution pilot; not a formal agent effectiveness experiment'
     write_json(root/'state.json',state);write_json(root/'trace.json',state['trace']);write_json(root/'result.json',result)
     seal(root);return result
 
