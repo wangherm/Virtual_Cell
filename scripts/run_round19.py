@@ -17,17 +17,18 @@ from vcell.model_agent.artifacts import read,arrays,seal,verify
 from vcell.model_agent.contracts import digest,safe_name
 from vcell.model_agent.deepseek import DEFAULT_MODEL
 from vcell.round11 import freeze
-from vcell.round19.agents import TrainingAgent,IterationAgent,guarded_call,DEFAULT_RECIPE,TEACHERS,validate_recipe,fixed_recipes
+from vcell.round19.agents import TrainingAgent,IterationAgent,DEFAULT_RECIPE,TEACHERS,validate_recipe,fixed_recipes
 from vcell.round19.cache import build_cache,source_lines
 from vcell.round19.predictor import train_worker
 from vcell.utils import write_json,file_sha256
 from prepare_qwen import prepare,matches
 import run_round17_oof as review_tools
+import round19_recovery as recovery
 
 
 def identity():
-    paths=[Path(__file__),REPO/'scripts/prepare_qwen.py',*sorted((REPO/'src/vcell/round19').glob('*.py'))]
-    return digest({str(p.relative_to(REPO)):file_sha256(p) for p in paths})
+    paths=[Path(__file__),Path(recovery.__file__),REPO/'scripts/prepare_qwen.py',*sorted((REPO/'src/vcell/round19').glob('*.py'))]
+    return digest({p.relative_to(REPO).as_posix():file_sha256(p) for p in paths})
 
 
 def worker_environment():
@@ -168,9 +169,11 @@ def run(a):
     data_dir=Path(inputs['data_dir'])
     plan={'experiment':'round19_dual_agent_local_predictor','code':identity(),'parent_complete':file_sha256(parent/'COMPLETE.json'),
         'dataset_sha256':file_sha256(data_dir/'dataset.npz'),'metadata_sha256':file_sha256(data_dir/'metadata.csv'),
-        **{k:v for k,v in vars(a).items() if k not in ('resume','prepare_only')},
+        **{k:v for k,v in vars(a).items() if k not in ('resume','prepare_only','repair_truncated_responses')},
+        'truncation_recovery':{'version':1,'model_namespace':recovery.namespace_identity(),
+            'scope':'length-truncated API responses consume attempts; no retry or partial decision execution'},
         'test_evaluated':False,'outer_role':'Previously observed development cell line, not independent external test'}
-    freeze(root/'plan.json',plan)
+    recovery.freeze_plan(root,plan,getattr(a,'repair_truncated_responses',False),a.resume)
     if (root/'COMPLETE.json').exists():verify(root);print('ROUND19 COMPLETE VERIFIED',root);return root
     def stage(value,**details):write_json(root/'stage.json',{'stage':value,'test_evaluated':False,**details});print('ROUND19 STAGE:',value,details,flush=True)
     budget={'candidate_rounds':a.iterations,'training_agent_requests_max':a.iterations if a.search_mode!='random' else 0,
@@ -220,7 +223,8 @@ def run(a):
             if (folder/'decision.json').exists():decision=read(folder/'decision.json')
             else:
                 if training:
-                    response,failure=guarded_call(training,obs);decision=asdict(response) if response else {'status':'rejected','validation':failure}
+                    response,failure=recovery.call(training,obs,'training');decision=asdict(response) if response else {'status':'rejected','validation':failure}
+                    if failure:print('ROUND19 TRAINING DECISION REJECTED',i,failure,flush=True)
                 else:decision={'tool':'train','expert_id':None,'reason':'budget-matched seeded random recipe','recipe':propose_random(i,a.seed,models)}
                 freeze(folder/'decision.json',decision)
             if (folder/'result.json').exists():result=read(folder/'result.json')
@@ -246,12 +250,15 @@ def run(a):
             freeze(folder/'review_observation.json',review_obs)
             if not (folder/'review.json').exists():
                 if reviewer:
-                    response,failure=guarded_call(reviewer,review_obs);rev=asdict(response) if response else {'status':'rejected','validation':failure}
+                    response,failure=recovery.call(reviewer,review_obs,'review');rev=asdict(response) if response else {'status':'rejected','validation':failure}
+                    if failure:print('ROUND19 REVIEW UNAVAILABLE',i,failure,flush=True)
                 else:rev={'role':'no_second_agent','next_hypothesis':None}
                 freeze(folder/'review.json',rev)
             history.append({'result':result,'review':read(folder/'review.json')})
             seal(folder);write_json(root/'iteration_progress.json',{'completed_rounds':i,'total_rounds':a.iterations,
                 'evaluated_candidates':sum(r['result']['status']=='evaluated' for r in history),'best_source':best,
+                'completed_reviews':sum(r['review'].get('tool')=='review' for r in history),
+                'missing_review_rounds':sum(r['review'].get('status')=='rejected' for r in history),
                 'training_api':training.summary() if training else None,'review_api':reviewer.summary() if reviewer else None})
             print('ROUND19 ITERATION COMPLETE',i,'/',a.iterations,result['status'],flush=True)
         source_candidates={**baseline,**{name:r['source_mse'] for name,r in control_summary.items()}}
@@ -290,6 +297,7 @@ def run(a):
             'external_native_teachers':'NOT_CONNECTED; no public checkpoint assumed leakage-free',
             'qwen_control':'matched pretrained Qwen fusion' if 'qwen' in models else 'NOT_RUN; B2 projector is not a Qwen language-model control',
             'training_agent':training.summary() if training else None,'iteration_agent':reviewer.summary() if reviewer else None,
+            'missing_review_rounds':sum(r['review'].get('status')=='rejected' for r in history),
             'search_vs_controls':'Single/random equal-round search requires separate --search-mode runs; fixed controls alone cannot prove dual-agent superiority'})
         (root/'report.html').write_text('<html><meta charset="utf-8"><h1>Round19 local predictor development benchmark</h1><p>100 rounds are source-only candidate attempts. Outer scores are read after search and final refits freeze. API scientists are not fine-tuned. Native State ST/TxPert are not connected.</p>'+comparison.to_html(index=False,escape=True)+'</html>',encoding='utf-8')
         (root/'INCOMPLETE.json').unlink(missing_ok=True);stage('complete');seal(root,test_evaluated=False)
@@ -314,9 +322,11 @@ def main(argv=None):
     p.add_argument('--agent-model',default=DEFAULT_MODEL);p.add_argument('--effort',choices=['low','high','max'],default='high')
     p.add_argument('--max-output-tokens',type=int,default=8192);p.add_argument('--api-timeout',type=float,default=180)
     p.add_argument('--prepare-only',action='store_true');p.add_argument('--resume',action='store_true')
+    p.add_argument('--repair-truncated-responses',action='store_true',help='Audit a supported old source-search run and retain completed fits/paid calls')
     a=p.parse_args(argv)
     if a.worker_config:return train_worker(read(a.worker_config),True)
     safe_name(a.name)
+    if a.repair_truncated_responses and not a.resume:p.error('Recovery requires --resume')
     if not 1<=a.iterations<=100 or min(a.max_steps,a.teacher_steps,a.batch_size,a.save_every,a.max_output_tokens)<1 or a.api_timeout<=0 or a.seed<0:p.error('Invalid bounded experiment budgets')
     with run_lock(Path(a.work_dir)/'runs'/('.'+a.name+'.lock')):return run(a)
 

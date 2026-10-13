@@ -186,7 +186,9 @@ def test_controller_actually_completes_100_rounds_and_200_calls(tmp_path,monkeyp
     monkeypatch.setattr(runner,'load_prepared',lambda _: {'audit':{'fingerprint':'mock'}})
     spec={'model_dir':'mock','dtype':'float32','identity':{'fixture':'MOCK'}}
     monkeypatch.setattr(runner,'model_specs',lambda *args:{'deepseek':spec,'mlp':spec})
-    def cache(data,fold,pool,path,*args):return synthetic_worker_cache(path)
+    def cache(data,fold,pool,path,*args):
+        if (path/'COMPLETE.json').exists():verify(path);return path
+        return synthetic_worker_cache(path)
     monkeypatch.setattr(runner,'build_cache',cache)
     frame=pd.DataFrame({'row_id':['source_q'],'context':['SOURCE_A'],'target':['G0'],'method':['zero'],
         'mse':[1.],'zero_mse':[1.],'prediction_norm':[0.],'truth_norm':[1.],'cosine':[0.],'specificity_gap':[0.]})
@@ -198,19 +200,46 @@ def test_controller_actually_completes_100_rounds_and_200_calls(tmp_path,monkeyp
     fits=[]
     def dispatch(specs,*args):
         for cfg in specs.values():
-            path=Path(cfg['output_dir']);write_json(path/'manifest.json',{'config':cfg});seal(path);fits.append(str(path))
+            path=Path(cfg['output_dir'])
+            if (path/'COMPLETE.json').exists():
+                verify(path);assert read(path/'manifest.json')['config']==cfg;continue
+            write_json(path/'manifest.json',{'config':cfg});seal(path);fits.append(str(path))
     monkeypatch.setattr(runner,'dispatch',dispatch);monkeypatch.setenv('DEEPSEEK_API_KEY','SECRET')
     responses=[]
     for i in range(1,101):
         recipe={**DEFAULT_RECIPE,'learning_rate':1e-5+i*5e-6}
         responses.append(reply(content=json.dumps({'tool':'train','expert_id':None,'reason':'Bounded unique recipe '+str(i),'recipe':recipe})))
-    a=Client(responses);b=Client([reply(content=json.dumps({'tool':'review','expert_id':None,'reason':'Source review','next_hypothesis':'Modify learning rate within budget'})) for _ in range(100)])
+    reviews=[reply(content=json.dumps({'tool':'review','expert_id':None,'reason':'Source review','next_hypothesis':'Modify learning rate within budget'})) for _ in range(100)]
+    reviews[5]=reply(finish='length');reviews[5].value['usage'].update(completion_tokens=8192,completion_tokens_details={'reasoning_tokens':8192})
+    a=Client(responses);b=Client(reviews)
     monkeypatch.setattr(runner,'TrainingAgent',lambda *args,**kwargs:TrainingAgent(*args,**kwargs,client=a))
     monkeypatch.setattr(runner,'IterationAgent',lambda *args,**kwargs:IterationAgent(*args,**kwargs,client=b))
     command=['--work-dir',str(tmp_path),'--source-run',str(source),'--name','hundred','--iterations','100','--device','cpu']
-    root=runner.main(command);verify(root);progress=read(root/'iteration_progress.json')
+    # Reproduce the user's old sixth-review stop, with all three fits complete.
+    from vcell.round19.agents import guarded_call
+    original=runner.recovery.call
+    def old_sixth_review(planner,obs,role):
+        if role=='review' and obs['iteration']==6:return guarded_call(planner,obs)
+        return original(planner,obs,role)
+    monkeypatch.setattr(runner.recovery,'call',old_sixth_review)
+    with pytest.raises(RuntimeError,match='incomplete_response'):runner.main(command)
+    root=tmp_path/'runs/hundred'
+    assert read(root/'iteration_progress.json')['completed_rounds']==5
+    assert read(root/'trials/trial_006/result.json')['status']=='evaluated'
+    assert len(a.calls)==len(b.calls)==6
+    # Simulate the known old frozen plan, without changing data or training.
+    old=read(root/'plan.json');old.pop('truncation_recovery');old['code']='d848df19638e352029b1454aa899fa9291ff78829a50444500bd84246cc63ad0'
+    write_json(root/'plan.json',old)
+    monkeypatch.setattr(runner.recovery,'call',original)
+    root=runner.main(command+['--resume','--repair-truncated-responses']);verify(root);progress=read(root/'iteration_progress.json')
     assert progress['completed_rounds']==progress['evaluated_candidates']==100
     assert len(a.calls)==len(b.calls)==100 and progress['training_api']['attempted_requests']==100
+    assert progress['completed_reviews']==99 and progress['missing_review_rounds']==1
+    assert read(root/'trials/trial_006/review.json')['validation']['finish_reason']=='length'
+    assert read(root/'recovery/original_plan.json')==old
+    next_body=json.loads(a.calls[6][1]['json']['messages'][1]['content'])
+    assert next_body['recent_source_experiments'][-1]['result']['iteration']==6
+    assert next_body['recent_source_experiments'][-1]['review']['validation']['feedback_available'] is False
     assert len([p for p in fits if '/trial_' in p.replace('\\','/')])==300
     marker=(root/'COMPLETE.json').read_bytes();runner.main(command+['--resume'])
     assert (root/'COMPLETE.json').read_bytes()==marker and len(a.calls)==len(b.calls)==100

@@ -125,6 +125,26 @@ with a durable audit/checkpoint; resume the identical command. API requests with
 unknown outcomes remain counted. Actual tokens, attempts and worker time are
 reported; currency cost is not estimated.
 
+An HTTP-200 response with `finish_reason=length` has reached the output-token cap
+before producing a valid final decision. Output tokens include reasoning tokens:
+all 8,192 can be used on reasoning before any JSON appears. Such a response now
+consumes its original slot without being retried. A truncated training decision
+rejects that candidate round; a truncated review marks feedback unavailable while
+preserving the completed training result. No partial text is parsed/executed and
+no review advice is invented. The following round still receives real source
+measurements. `completed_reviews` and `missing_review_rounds` distinguish these
+outcomes from successful reviews.
+
+For an incomplete **95d0882** run paused on this exact token-limit error, repeat
+the original command with `--resume --repair-truncated-responses`. The migration
+checks unchanged prediction/cache/agent modules and unchanged folds, seeds,
+training steps and API configuration/budgets. `recovery/` retains the original
+plan and migration receipt. Completed fits and paid counters are not reset.
+Migration is rejected after source selection/final evaluation has started.
+Subsequent resumes only require `--resume`. Increasing output tokens or changing
+reasoning effort is a separately configured new experiment, not a silent change
+to this run.
+
 Fixed controls include DeepSeek without teachers, fixed fusion, LoRA fusion and
 an MLP with the same numerical inputs. The optional Qwen control uses the same
 folds/features/loss/steps. Full single-agent/random **equal-round search** controls
