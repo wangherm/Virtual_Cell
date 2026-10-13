@@ -1,0 +1,27 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+  "revision": "ad9f0ae0864d7fbcd1cd905e3c6c5b069cc8b562",
+  "files": {
+    "config.json": {
+      "size": 679,
+      "sha256": "37bd455e9679d2959536270fed49d25cc7c290a64f6e52abb97c71345a9cee41"
+    },
+    "tokenizer.json": {
+      "size": 7031660,
+      "sha256": "88145e3c3249adc2546ede277e9819d6e405e19072456e4b521cbc724bd60773"
+    },
+    "tokenizer_config.json": {
+      "size": 3071,
+      "sha256": "8ac8c85fb242563c2260baec0909debd69d718af6a0b3d90e6cab62b4d341cd5"
+    },
+    "model.safetensors": {
+      "size": 3554214621,
+      "sha256": "58858233513d76b8703e72eed6ce16807b523328188e13329257fb9594462945"
+    },
+    "LICENSE": {
+      "size": 1064,
+      "sha256": "1c8f573e830ca9b3ebfeb7ace1823146e22b66f99ee223840e7637c9e745e1c7"
+    }
+  },
+  "source": "Official DeepSeek Hugging Face repository; weights are the R1 distilled Qwen model, not API V4-Pro"
+}

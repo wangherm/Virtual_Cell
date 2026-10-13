@@ -31,6 +31,12 @@ expert, source-scoped SQLite memory, traceable Europe PMC abstract retrieval,
 literature/no-literature/random/fixed search controls and paired conservative
 routing tests. It reuses exact completed source fits and preserves private outer evaluation.
 
+[Round19 dual-scientist predictor](docs/ROUND19_DUAL_PREDICTOR.md) trains a local
+DeepSeek-R1-Distill-Qwen-1.5B model with numerical inputs, a signed response head
+and optional LoRA. Separate API scientists propose and review 100 source-only
+candidate rounds, with cross-fitted numerical teachers, fixed fusion/MLP/Qwen
+controls, durable accounting and private evaluation after recipe freeze.
+
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
 ```
