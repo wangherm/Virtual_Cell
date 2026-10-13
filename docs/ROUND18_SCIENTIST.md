@@ -226,3 +226,57 @@ pools must not be used to attribute a prediction-head gain to routing alone.
 The next milestone is reproducible held-background benefit over zero, the strongest
 fixed expert and ordinary learned routing. A functioning research loop or plausible
 paper-grounded explanation alone does not meet that milestone.
+
+## Rejected proposals and legacy recovery
+
+A successful HTTP response can still contain an invalid research proposal. JSON,
+recipe, bounded Python syntax and citation checks remain mandatory. Rejections are
+now failed trial slots: no head is executed, no model is fitted, and the next
+proposal receives source-only failure feedback. The paid attempt remains in the
+original ledger. API authentication, transport failures and unknown outcomes still
+stop the run; inference-time routing validation is unchanged.
+
+New research audits include `api/validation_NNNN.json` with an allowlisted local
+validation rule. Raw responses, hidden reasoning and secrets are not saved. Old
+audits cannot reconstruct a discarded response; their rejected trial explicitly
+records that the specific rule was not retained.
+
+For an incomplete **80692cd** experiment stopped on an invalid proposal, run the
+original command with `--resume --repair-invalid-proposals`. The migration accepts
+only that known launcher, unchanged model-agent/core code, identical data, seeds,
+prompts and budgets, and no existing outer routing/evaluation. The original plan
+and old/new plan digests are retained under `recovery/`. Existing completed source
+fits, search controls and accepted trials are reused; failed paid responses count
+toward the original budget. Subsequent resumes only need `--resume`.
+
+Do not increase an existing experiment's budget during recovery. A changed budget
+requires a new name, so the original comparison remains reproducible.
+
+## Larger evidence-guided self-iteration
+
+New runs support 1–8 cycles, 1–4 trials per cycle, and patience of 1–8 cycles.
+The defaults remain 2 × 2. The larger preset is:
+
+```bash
+screen -dmS vcell18iterate bash scripts/run_round18_iterate_autodl.sh \
+  --reuse-round17 /root/autodl-tmp/vcell-work/runs/round18_pilot_01
+```
+
+Use that reuse path only after the recovered pilot completes; otherwise reuse a
+completed Round17 run. The preset uses one BXPC3 development fold and seed 17,
+6 cycles × 3 trials per arm, patience 3, and the original 3-target live benchmark.
+It compares the same four arms. Upper bounds are **36 research API requests**,
+**216 candidate inner-fold fits**, and **4 final candidate fits** for this one
+fold/seed. Live routing has its own unchanged maximum, printed in `budget.json`.
+Accepted and rejected proposals both use the trial/request budget; there are no
+unbounded retries or budget resets.
+
+Every cycle carries the best measured source candidate, per-background gains and
+recent failure feedback. Larger runs ask for one testable change at a time and
+skip identical code/recipe training. Fixed controls expand to distinct predeclared
+recipes; random controls use the same maximum budget. Early stopping still applies:
+three consecutive cycles without at least 0.1% source improvement stop the preset.
+Promotion still requires >1% gain over the strongest fixed expert including zero,
+gains in at least two source backgrounds and the original robustness checks.
+Outer scores cannot steer subsequent trials. More trials increase search capacity;
+they do not establish transfer or improve the DeepSeek model weights.

@@ -9,19 +9,20 @@ REPO=Path(__file__).resolve().parents[1];sys.path.insert(0,str(REPO/'src'))
 import numpy as np
 import pandas as pd
 import run_round17_oof as core
+import round18_recovery as recovery
 from vcell.clean_background import run_lock
 from vcell.model_agent.artifacts import read,seal,verify
 from vcell.model_agent.contracts import digest,load_query,safe_name
 from vcell.model_agent.deepseek import DEFAULT_MODEL,DeepSeekPlanner
 from vcell.model_agent.experts import Expert,Registry
-from vcell.model_agent.iteration import IterationBudget,feedback
+from vcell.model_agent.iteration import feedback
 from vcell.model_agent.nested import DEVELOPMENT,cell_line_key,source_summary
 from vcell.model_agent.reliability import ReliabilityPlanner,fit_reliability,macro
 from vcell.model_agent.research import Proposal,ResearchPlanner,export_candidate,parse_proposal
 from vcell.model_agent.routing import GatePlanner,OneShotPlanner,fit_gate
 from vcell.model_agent.runtime import code_identity,execute
 from vcell.model_agent.scientific_memory import ScientificMemory,collect_literature,retrieve_papers
-from vcell.model_agent.scientist import ScientistPlanner,control_proposal,observation
+from vcell.model_agent.scientist import ScientistPlanner,observation
 from vcell.round11 import freeze,verify_files
 from vcell.utils import file_sha256,write_json
 
@@ -97,35 +98,57 @@ def search_arm(a,pl,data,root,pools,summary,arm,papers,memory_snapshot,memory):
         cls=ScientistPlanner if arm=='agent_literature' else ResearchPlanner
         planner=cls(folder/'api',a.model,reasoning_effort=a.research_effort,max_api_calls=a.trials*a.cycles,
                     max_output_tokens=a.max_output_tokens,timeout=a.api_timeout)
+        if hasattr(planner,'parse_action'):recovery.install_diagnostics(planner)
     previous=[];best=summary['fixed_source_mse'][summary['best_fixed']];chosen=None;best_candidate=None;best_observed=float('inf')
-    iteration=IterationBudget(a.cycles,a.trials,a.patience_cycles)
+    iteration=recovery.ResearchIterationBudget(a.cycles,a.trials,a.patience_cycles)
     for i in range(1,a.trials*a.cycles+1):
         cycle=(i-1)//a.trials+1
         dest=folder/f'trial_{i:02d}';dest.mkdir(parents=True,exist_ok=True)
         active_papers=retrieve_papers(papers,'cross-background perturbation prediction regularization low rank '+(previous[-1].get('reason','') if previous else '')) if arm=='agent_literature' else None
         obs=observation(summary,previous,memory_snapshot,active_papers);obs['self_iteration']=feedback(previous,cycle,a.cycles,best_candidate)
+        if a.cycles>3 or a.trials>2:
+            obs['design_guidance']='Exploit measured source gains, especially weak source backgrounds; change one hypothesis at a time. Correct rejected syntax using the starting_head. Avoid repeating identical recipes. Source improvements must satisfy promotion rules; outer responses stay sealed.'
         freeze(dest/'observation.json',obs)
+        rejection=None;p=None
         if (dest/'proposal.json').exists():
             value=read(dest/'proposal.json');p=parse_proposal(json.dumps(value['proposal']))
             if arm=='agent_literature':
                 from vcell.model_agent.scientific_memory import validate_citations
                 validate_citations(value['citations'],active_papers,p.tool=='propose_trial')
         else:
-            generated=planner.decide(obs) if planner else control_proposal(arm,i,pl['seed'],pl['outer_context'])
-            p=Proposal(**{k:getattr(generated,k) for k in Proposal.__dataclass_fields__})
-            value={'proposal':asdict(p),'hypothesis':getattr(generated,'hypothesis',p.reason),
-                'citations':getattr(generated,'citations',[]),'arm':arm,'cycle':cycle}
-            write_json(dest/'proposal.json',value)
-        if p.tool=='stop':
+            rejection=recovery.rejected_proposal(planner,obs) if planner else None
+            if not rejection:
+                try:
+                    generated=planner.decide(obs) if planner else recovery.extended_control(arm,i,pl['seed'],pl['outer_context'])
+                except RuntimeError:
+                    rejection=recovery.rejected_proposal(planner,obs) if planner else None
+                    if not rejection:raise
+                if not rejection:
+                    p=Proposal(**{k:getattr(generated,k) for k in Proposal.__dataclass_fields__})
+                    value={'proposal':asdict(p),'hypothesis':getattr(generated,'hypothesis',p.reason),
+                        'citations':getattr(generated,'citations',[]),'arm':arm,'cycle':cycle}
+                    write_json(dest/'proposal.json',value)
+            if rejection:
+                rejection={**rejection,'trial':i}
+                freeze(dest/'result.json',rejection)
+                print(f'RESEARCH REJECTION trial={i}: {rejection["reason"]}; counted within original budget',flush=True)
+        if p is not None and p.tool=='stop':
             stop={'cycle':cycle,'stop_reason':'agent_requested_stop','outer_used':False,'next_cycle_allowed':False}
             iteration.records.append(stop);freeze(folder/'cycles'/('cycle_'+str(cycle)+'.json'),stop);break
-        source=dest/'head.py'
-        if not source.exists():source.write_text(p.code,encoding='utf-8')
-        if source.read_text(encoding='utf-8')!=p.code:raise ValueError('Frozen head code changed')
         name=arm+'_head_'+str(i);suffix=arm+'_trial'+str(i)
+        source=dest/'head.py'
+        if p is not None:
+            if not source.exists():source.write_text(p.code,encoding='utf-8')
+            if source.read_text(encoding='utf-8')!=p.code:raise ValueError('Frozen head code changed')
         if (dest/'result.json').exists():result=read(dest/'result.json')
         else:
             try:
+                if a.cycles>3 or a.trials>2:
+                    recipe={k:v for k,v in asdict(p).items() if k not in ('reason','tool','expert_id')}
+                    for old in sorted(folder.glob('trial_*/proposal.json')):
+                        if old.parent==dest:continue
+                        old_recipe={k:v for k,v in read(old)['proposal'].items() if k in recipe}
+                        if digest(old_recipe)==digest(recipe):raise ValueError('Duplicate candidate recipe; no repeated training')
                 core.admit(source,p.rank,dest);jobs={}
                 for fold in pl['folds'][1:]:
                     cfg={**fold['configs']['expanded'],'recipe':asdict(p),'head_code':str(source),
@@ -150,13 +173,14 @@ def search_arm(a,pl,data,root,pools,summary,arm,papers,memory_snapshot,memory):
         if result.get('accepted') and result['source_oof_mse']<best:
             best=result['source_oof_mse'];chosen={'trial':i,'expert_id':name,'source_oof_mse':best,'proposal':asdict(p),
                 'head_code':str(source),'evidence_suffix':suffix}
-        used=set()
-        for fold in pl['folds'][1:]:
-            e=Registry(pools[fold['name']]).experts['expanded_factor_rank16'];used.update(e.provenance['fit_cell_lines']);used.update(e.provenance['calibration_cell_lines']);used.add(cell_line_key(fold['held']))
-        memory.add_experiment(digest([str(root),pl['name'],arm,i]),{'evaluation_role':'source_inner_oof','outer_used':False,
-            'used_cell_lines':sorted(used),'data_fingerprint':data['audit']['fingerprint'],'arm':arm,'status':result['status'],
-            'source_mse':result.get('source_oof_mse'),'baseline_mse':summary['fixed_source_mse'][summary['best_fixed']],
-            'reason':p.reason,'recipe_sha256':digest(asdict(p))})
+        if p is not None:
+            used=set()
+            for fold in pl['folds'][1:]:
+                e=Registry(pools[fold['name']]).experts['expanded_factor_rank16'];used.update(e.provenance['fit_cell_lines']);used.update(e.provenance['calibration_cell_lines']);used.add(cell_line_key(fold['held']))
+            memory.add_experiment(digest([str(root),pl['name'],arm,i]),{'evaluation_role':'source_inner_oof','outer_used':False,
+                'used_cell_lines':sorted(used),'data_fingerprint':data['audit']['fingerprint'],'arm':arm,'status':result['status'],
+                'source_mse':result.get('source_oof_mse'),'baseline_mse':summary['fixed_source_mse'][summary['best_fixed']],
+                'reason':p.reason,'recipe_sha256':digest(asdict(p))})
         if i%a.trials==0:
             decision=iteration.complete(cycle,previous,summary['fixed_source_mse'][summary['best_fixed']])
             freeze(folder/'cycles'/('cycle_'+str(cycle)+'.json'),{**decision,'feedback':feedback(previous,cycle,a.cycles,best_candidate)})
@@ -220,15 +244,17 @@ def main(argv=None):
     p.add_argument('--max-steps',type=int,default=2000);p.add_argument('--pretrain-steps',type=int);p.add_argument('--batch-size',type=int,default=128)
     p.add_argument('--save-every',type=int,default=100);p.add_argument('--parallel-jobs',type=int,choices=[1,2,3,4],default=3)
     p.add_argument('--device',choices=['cpu','cuda'],default='cuda');p.add_argument('--prepare-only',action='store_true');p.add_argument('--resume',action='store_true')
+    p.add_argument('--repair-invalid-proposals',action='store_true',help='Audit a supported legacy search-only resume; cannot change old budgets')
     p.add_argument('--search-arms',nargs='+',choices=['fixed','random','agent_plain','agent_literature'],default=['fixed','random','agent_plain','agent_literature'])
-    p.add_argument('--trials',type=int,choices=[1,2],default=2);p.add_argument('--cycles',type=int,choices=[1,2,3],default=2)
-    p.add_argument('--patience-cycles',type=int,choices=[1,2,3],default=2);p.add_argument('--minimum-gain',type=float,default=.01)
+    p.add_argument('--trials',type=int,choices=range(1,5),default=2);p.add_argument('--cycles',type=int,choices=range(1,9),default=2)
+    p.add_argument('--patience-cycles',type=int,choices=range(1,9),default=2);p.add_argument('--minimum-gain',type=float,default=.01)
     p.add_argument('--model',default=DEFAULT_MODEL);p.add_argument('--research-effort',choices=['low','high','max'],default='high')
     p.add_argument('--max-output-tokens',type=int,default=8192);p.add_argument('--api-timeout',type=float,default=180.)
     p.add_argument('--literature-cutoff',default='2026-10-12');p.add_argument('--literature-cache');p.add_argument('--memory-db')
     p.add_argument('--live-routing',action='store_true');p.add_argument('--live-targets',type=int,default=3)
     p.add_argument('--routing-efforts',nargs='+',choices=['low','high','max'],default=['low']);p.add_argument('--routing-calls',type=int,default=4)
     a=p.parse_args(argv);safe_name(a.name)
+    if a.repair_invalid_proposals and not a.resume:p.error('Recovery requires --resume')
     if min(a.max_steps,a.batch_size,a.save_every,a.targets_per_context,a.live_targets)<1 or a.profile_targets<0 or not 0<=a.minimum_gain<1:p.error('Invalid budgets')
     if a.pretrain_steps is not None and a.pretrain_steps<1 or not 1<=a.routing_calls<=8:p.error('Invalid optimizer/API budget')
     for field in ('outer_contexts','seeds','search_arms','routing_efforts'):
@@ -242,10 +268,12 @@ def launch(a,root,work):
     parent=Path(a.p4_run or work/'runs/round15_p4_02').resolve();verify_files(parent)
     plan={'experiment':'round18_scoped_virtual_cell_scientist','source':code_identity(),'launcher':file_sha256(__file__),
         'core_launcher':file_sha256(core.__file__),'parent':str(parent),'parent_complete':file_sha256(parent/'COMPLETE.json'),
-        **{k:v for k,v in vars(a).items() if k not in ('resume','prepare_only')},
+        **{k:v for k,v in vars(a).items() if k not in ('resume','prepare_only','repair_invalid_proposals')},
+        'proposal_recovery':{'version':1,'helper_sha256':file_sha256(recovery.__file__),
+            'scope':'Invalid research proposals consume slots and feed back; no routing validation changes'},
         'test_evaluated':False,'scientific_claim':'Development benchmark; literature inspiration is not method reproduction; source memory only'}
     if root.exists() and any(root.iterdir()) and not a.resume:raise ValueError('Use --resume or new name')
-    root.mkdir(parents=True,exist_ok=True);freeze(root/'plan.json',plan)
+    root.mkdir(parents=True,exist_ok=True);recovery.freeze_plan(root,plan,getattr(a,'repair_invalid_proposals',False),a.resume)
     if (root/'COMPLETE.json').exists():verify(root);print('ROUND18 COMPLETE VERIFIED:',root);return root
     def stage(label):write_json(root/'stage.json',{'stage':label,'test_evaluated':False});print('ROUND18 STAGE:',label,flush=True)
     try:

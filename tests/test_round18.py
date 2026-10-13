@@ -123,6 +123,7 @@ def test_search_cycles(tmp_path,monkeypatch):
         def summary(self):return {'attempted_requests':len(observations)}
     fake=SimpleNamespace(path=tmp_path,provenance={'fit_cell_lines':['A549','MCF7'],'calibration_cell_lines':['HAP1']})
     monkeypatch.setattr(runner,'ResearchPlanner',Planner)
+    monkeypatch.setattr(runner.recovery,'rejected_proposal',lambda *args:None)
     monkeypatch.setattr(runner,'Registry',lambda _:SimpleNamespace(experts={'expanded_factor_rank16':fake}))
     monkeypatch.setattr(runner.core,'admit',lambda *args:None);monkeypatch.setattr(runner.core,'dispatch',lambda *args:None)
     monkeypatch.setattr(runner,'export_candidate',lambda worker,dest,*args:dest)
