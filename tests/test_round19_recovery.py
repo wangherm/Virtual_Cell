@@ -50,7 +50,10 @@ def test_transport_and_filtering_still_stop(tmp_path,monkeypatch):
         assert p.summary()['attempted_requests']==1
 
 
-def test_migration_keeps_scopes_and_worker_code(tmp_path):
+def test_migration_keeps_scopes_and_worker_code(tmp_path,monkeypatch):
+    # This fixture represents the known old, unchanged worker implementation.
+    # Current model code is deliberately ineligible for that historical migration.
+    monkeypatch.setattr(recovery,'namespace_identity',lambda:recovery.LEGACY_MODEL_NAMESPACE)
     old={'code':next(iter(recovery.LEGACY_CODES)),'iterations':100,'max_steps':500,'effort':'high','seed':17}
     new={**old,'code':'new','truncation_recovery':{'version':1}}
     write_json(tmp_path/'plan.json',old)
@@ -67,3 +70,11 @@ def test_migration_keeps_scopes_and_worker_code(tmp_path):
     assert read(tmp_path/'recovery/migration.json')['paid_attempts_retained']
     assert read(tmp_path/'recovery/migration.json')['model_namespace_sha256']==recovery.LEGACY_MODEL_NAMESPACE
     recovery.freeze_plan(tmp_path,new,False,True)
+
+
+def test_changed_worker_code_cannot_use_historical_migration(tmp_path,monkeypatch):
+    old={'code':next(iter(recovery.LEGACY_CODES)),'iterations':100,'max_steps':500}
+    write_json(tmp_path/'plan.json',old)
+    monkeypatch.setattr(recovery,'namespace_identity',lambda:'MODIFIED_WORKER_CODE')
+    with pytest.raises(ValueError,match='unchanged model/cache/agent'):
+        recovery.freeze_plan(tmp_path,{**old,'code':'new','truncation_recovery':{'version':1}},True,True)
