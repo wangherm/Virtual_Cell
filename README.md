@@ -357,6 +357,8 @@ source code. The default pipeline uses one device, not distributed training.
 
 ## Documentation
 
+- [Round 22: ShinkaEvolve autonomous method discovery, isolated candidates and source confirmation](docs/ROUND22_SHINKA_EVOLVE.md)
+
 - [Round 11: source-context calibration, H1 few-shot diagnostic and frozen Jurkat release](docs/ROUND11.md)
 - [Round 12: target representations, split-half diagnostics and controlled training-data expansion](docs/ROUND12.md)
 - [Round 13: full-network diffusion, low-rank interactions and seen-target residuals](docs/ROUND13.md)
