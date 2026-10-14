@@ -75,7 +75,12 @@ def execute(code,data,dest,budget,python):
                         except FileNotFoundError:rss=0
                         if rss>budget['ram_bytes']:raise MemoryError('Candidate RSS cap exceeded')
                     time.sleep(.1)
-                if proc.returncode:raise RuntimeError('Candidate worker failed; inspect '+str(dest/'worker.log'))
+                if proc.returncode:
+                    # No hidden truth or provider credential is loaded by the worker.
+                    # Feed the actual numerical exception back so code evolution can debug it.
+                    tail='\n'.join((dest/'worker.log').read_text(encoding='utf-8',errors='replace').splitlines()[-20:])[-4000:]
+                    tail=tail.replace(str(Path(budget['root'])),'<run>').replace(str(dest),'<candidate>')
+                    raise RuntimeError('Candidate worker failed: '+tail)
             finally:
                 if proc.poll() is None:
                     if sys.platform=='linux':os.killpg(proc.pid,9)
@@ -188,5 +193,6 @@ def evaluate(code,root,task,phase,output,execute_fn=execute):
     metrics={'combined_score':float(combined),'public':public,'private':{},'extra_data':{'task':task,'phase':phase,'code_sha256':hashlib.sha256(code.encode()).hexdigest(),
         'method_seconds':sum(r['seconds'] for r in runtime) if runtime else None,'peak_vram_bytes':max((r['peak_vram_bytes'] for r in runtime),default=None),
         'torch_optimizer_steps':sum(r['torch_optimizer_steps'] for r in runtime) if runtime else None,'cost_scope':'saved method runtime, including ablations; total charged process time is in evaluation_budget.json'},
-        'text_feedback':json.dumps({'task':task,'scores':public,'objective':'Improve over strongest fixed baseline and use correct target information. Amplitude and specificity are diagnostic; no external success inferred.'})}
+        'text_feedback':json.dumps({'task':task,'scores':public,'by_source_context':grouped,
+            'objective':'Improve over strongest fixed baseline and use correct target information. Amplitude and specificity are diagnostic; no external success inferred.'})}
     write_json(output/'metrics.json',metrics);write_json(output/'correct.json',{'correct':True,'error':None});return metrics

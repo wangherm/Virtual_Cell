@@ -8,6 +8,9 @@ def macro(frame,column):
 
 
 def score(prediction,truth,background,mask,metadata):
+    # A finite float32 prediction can overflow a float32 squared error. Grade in
+    # float64 so extreme unsuccessful methods receive finite, reproducible scores.
+    prediction=np.asarray(prediction,np.float64);truth=np.asarray(truth,np.float64);background=np.asarray(background,np.float64)
     f=metadata.copy();error=np.square(prediction-truth)
     f['mse']=error.mean(1);f['zero_mse']=np.square(truth).mean(1);f['background_mse']=np.square(background-truth).mean(1)
     f['prediction_norm']=np.linalg.norm(prediction,axis=1);f['truth_norm']=np.linalg.norm(truth,axis=1)

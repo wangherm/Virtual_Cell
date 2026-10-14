@@ -37,7 +37,12 @@ def main():
         grader or hidden-label access is permitted. Output shape is query count x ordered 1834 genes.
         Follow supplied steps/seed/device budget. Optimize gains over strong fixed baselines and correct
         vs wrong target usage; merely collapsing output toward zero is not biological success.
-        numpy and torch are available. Use historical measured feedback to revise hypotheses.''')
+        numpy and torch are available; convert numeric inputs to float32 for neural modules.
+        Raw query_control and query_prior each have 1834 ordered features, source_context is a string
+        array, train_x/query_x have matching train-fit control and target projection dimensions.
+        Input tensors contain source training/calibration responses only, never query_y.
+        Torch optimizers are capped at budget steps; no torch.compile subprocess is supported.
+        Use per-source-context measured feedback and actual worker exceptions to revise hypotheses.''')
     job=LocalJobConfig(eval_program_path=str(repo/'experiments/round22_evolve/evaluate.py'),python_executable=a.python,time='00:45:00',numeric_threads_per_job=2)
     runner=ShinkaEvolveRunner(evo_config=evo,job_config=job,db_config=DatabaseConfig(**cfg['db']),
         max_evaluation_jobs=1,max_proposal_jobs=1,max_db_workers=1)
