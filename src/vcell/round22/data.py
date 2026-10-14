@@ -17,7 +17,7 @@ def projection(train,query,rank=16):
     return ((train-mean)/sd)@v.T,((query-mean)/sd)@v.T
 
 
-def pack(root,name,task,train,query,y,truth,tx,qx,targets,qtargets,ids,contexts,genes,support,qsupport,wrong,wrong_x,mask,available,common,unknown,extra=None,wrong_targets=None):
+def pack(root,name,task,train,query,y,truth,tx,qx,targets,qtargets,ids,contexts,genes,support,qsupport,wrong,wrong_x,mask,available,common,unknown,extra=None,wrong_targets=None,shuffled=None,shuffled_x=None,shuffled_targets=None):
     dest=root/'inputs'/name;dest.mkdir(parents=True,exist_ok=True)
     background=np.tile(y.mean(0),(len(query),1)).astype(np.float32)
     n=len(train);cal=np.array([int(digest(['cal',str(t)])[:8],16)%5==0 for t in targets])
@@ -36,7 +36,9 @@ def pack(root,name,task,train,query,y,truth,tx,qx,targets,qtargets,ids,contexts,
     np.savez_compressed(dest/'input.npz',**values)
     private=root/'private'/name;private.mkdir(parents=True,exist_ok=True)
     np.savez_compressed(private/'grade.npz',truth=truth,background=background,strong_mask=mask,available=available,common=common,unknown=unknown,
-        wrong_support=wrong,wrong_x=wrong_x,wrong_targets=np.asarray(wrong_targets if wrong_targets is not None else qtargets,dtype='U'))
+        wrong_support=wrong,wrong_x=wrong_x,wrong_targets=np.asarray(wrong_targets if wrong_targets is not None else qtargets,dtype='U'),
+        shuffled_support=shuffled if shuffled is not None else wrong,shuffled_x=shuffled_x if shuffled_x is not None else wrong_x,
+        shuffled_targets=np.asarray(shuffled_targets if shuffled_targets is not None else wrong_targets if wrong_targets is not None else qtargets,dtype='U'))
     pd.DataFrame({'row_id':ids,'context':contexts,'target':qtargets}).to_csv(private/'metadata.csv',index=False)
     lineage={'task':task,'source_train_rows':np.asarray(train).tolist(),'sealed_query_rows':np.asarray(query).tolist(),
         'source_only_transforms':True,'input_sha256':file_sha256(dest/'input.npz'),'grade_sha256':file_sha256(private/'grade.npz'),
@@ -94,19 +96,21 @@ def prepare(parent_run,root,outer_context,seed=17):
                 for j,v in enumerate(q):mask[j,top(v,100)]=True
                 mask &= np.abs(q)>=np.maximum(.05,2*sigma)
                 wi=[int(digest(['wrong',seed,u['perturbation']])[:8],16)%len(a) for u in query]
+                si=[int(digest(['shuffled',seed,u['perturbation']])[:8],16)%len(a) for u in query]
                 wrong=a[wi]
                 name=f'repeat_{stage}_{context}_{k}'
                 record=pack(root,name,'repeat',ti,qi,b,truth,tx,qx,[u['perturbation'] for u in train],[u['perturbation'] for u in query],
                     meta.iloc[qi].row_id.tolist(),[context]*len(qi),genes,a,q,wrong,qx,mask,np.ones(len(qi),bool),np.ones(len(qi),bool),np.zeros(len(qi),bool),
                     extra={'control':(data['baseline'][ti],data['baseline'][qi]),'prior':(np.array([lookup[u['perturbation']] for u in train]),np.array([lookup[u['perturbation']] for u in query])),
-                        'source_context':(meta.iloc[ti].context.to_numpy(dtype='U'),meta.iloc[qi].context.to_numpy(dtype='U'))},wrong_targets=[train[i]['perturbation'] for i in wi])
+                        'source_context':(meta.iloc[ti].context.to_numpy(dtype='U'),meta.iloc[qi].context.to_numpy(dtype='U'))},wrong_targets=[train[i]['perturbation'] for i in wi],
+                    shuffled=a[si],shuffled_x=qx,shuffled_targets=[train[i]['perturbation'] for i in si])
                 record['train_rep1_rows']=[int(u['rep1_rows'][0]) for u in train];record['query_rep1_support_rows']=[int(u['rep1_rows'][0]) for u in query]
                 folds['repeat'][stage].append(record)
     def transfer_fold(stage,context,train,query):
         if not len(query):return
         tx,qx=features(train,query);y=delta[train];mean=y.mean(0)
         # Donor use is computed only from current training labels and exact conditions.
-        refs=[];wrong=[];wx=[];wt=[];av=[];common=[];mask=[]
+        refs=[];wrong=[];wx=[];wt=[];shuffled=[];sx=[];st=[];av=[];common=[];mask=[]
         table,_,masks=signature_table(meta,train,y)
         from ..round21.signal import KEYS
         cond=('dataset','stimulus','time','modality','batch')
@@ -121,6 +125,8 @@ def prepare(parent_run,root,outer_context,seed=17):
             wrong.append(y[oi] if oi is not None else np.zeros(len(genes)));av.append(supported);common.append(paired)
             wx.append(tx[oi] if oi is not None else qx[j])
             wt.append(str(tr.iloc[oi].perturbation) if oi is not None else str(row.perturbation))
+            si=other[int(digest(['shuffled',seed,str(row.perturbation)])[:8],16)%len(other)] if paired else None
+            shuffled.append(y[si] if si is not None else np.zeros(len(genes)));sx.append(tx[si] if si is not None else qx[j]);st.append(str(tr.iloc[si].perturbation) if si is not None else str(row.perturbation))
             strong=np.zeros(len(genes),bool)
             for pos in matched:
                 key=tuple(tr.iloc[pos][c] for c in KEYS)
@@ -134,12 +140,13 @@ def prepare(parent_run,root,outer_context,seed=17):
             support.append(y[ok].mean(0) if ok.any() else np.zeros(len(genes)))
         # Wrong-target ablation preserves the true query control feature block.
         control_dim=min(16,len(train));wx=np.array(wx);wx[:,:control_dim]=qx[:,:control_dim]
+        sx=np.array(sx);sx[:,:control_dim]=qx[:,:control_dim]
         name=f'transfer_{stage}_{context}'
         record=pack(root,name,'transfer',train,query,y,delta[query],tx,qx,tr.perturbation.tolist(),meta.iloc[query].perturbation.tolist(),
             meta.iloc[query].row_id.tolist(),meta.iloc[query].context.tolist(),genes,np.array(support),np.array(refs),np.array(wrong),wx,np.array(mask),np.array(av),np.array(common),meta.iloc[query].perturbation.isin(held).to_numpy(),
             extra={'control':(data['baseline'][train],data['baseline'][query]),'prior':(np.array([lookup[s] for s in tr.perturbation]),np.array([lookup[s] for s in meta.iloc[query].perturbation])),
                 'source_context':(tr.context.to_numpy(dtype='U'),meta.iloc[query].context.to_numpy(dtype='U')),
-                'conditions':(tr[list(cond)].to_numpy(dtype='U'),meta.iloc[query][list(cond)].to_numpy(dtype='U'))},wrong_targets=wt)
+                'conditions':(tr[list(cond)].to_numpy(dtype='U'),meta.iloc[query][list(cond)].to_numpy(dtype='U'))},wrong_targets=wt,shuffled=np.array(shuffled),shuffled_x=sx,shuffled_targets=st)
         record['donor_policy']='all legal same-target source responses; reliability is available for diagnostics, not a mandatory zero gate'
         folds['transfer'][stage].append(record)
     for stage in ('search','confirmation'):

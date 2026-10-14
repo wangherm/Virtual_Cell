@@ -74,6 +74,6 @@ def runtime_paths():
     """Libraries are readable, main repository, home, other processes and labels are not."""
     paths=[sys.base_prefix+'/lib',sys.prefix+'/lib','/usr/lib','/usr/lib64','/lib','/lib64','/usr/local/cuda','/usr/local/nvidia','/usr/local/lib',
            '/etc/ld.so.cache','/etc/localtime','/etc/passwd','/proc/self','/proc/thread-self','/proc/meminfo','/proc/cpuinfo',
-           '/proc/stat','/proc/sys/kernel','/sys/devices/system/cpu','/sys/bus/pci','/proc/driver/nvidia']
+           '/proc/stat','/proc/sys/kernel','/sys/devices','/sys/bus/pci','/proc/driver/nvidia']
     paths += [str(p) for p in Path('/dev').glob('nvidia*')]
     return paths

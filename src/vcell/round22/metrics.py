@@ -30,9 +30,10 @@ def fitness(frame,baseline):
     gap=macro(frame,'specificity_gap');strong=macro(frame,'strong_mse')
     wins=frame.groupby(['context','target']).mse.mean()<baseline.groupby(['context','target']).mse.mean()
     values={'mse':mse,'gain_over_fixed':gain,'target_win_fraction':float(wins.mean()),'amplitude_ratio':amplitude,
+        'target_win_fraction_vs_zero':float((frame.groupby(['context','target']).mse.mean()<frame.groupby(['context','target']).zero_mse.mean()).mean()),
         'residual_amplitude_ratio':macro(frame,'residual_norm')/max(macro(frame,'truth_residual_norm'),1e-12),
         'specificity_gap':gap,'strong_mse':strong,'contexts':int(frame.context.nunique()),'targets':int(frame.target.nunique())}
     # Smooth exploration score; separate binary promotion prevents tiny zero-like wins.
     combined=100*gain+.1*(gap if np.isfinite(gap) else 0.)-.05*max(0.,.05-amplitude)
-    values['biological_success']=bool(gain>=.01 and amplitude>=.05 and np.isfinite(gap) and gap>0 and np.isfinite(strong))
+    values['signal_screen_passed']=bool(gain>=.01 and amplitude>=.05 and np.isfinite(gap) and gap>0 and np.isfinite(strong))
     return combined,{k:(float(v) if isinstance(v,(float,np.floating)) and np.isfinite(v) else None if isinstance(v,(float,np.floating)) else v) for k,v in values.items()}

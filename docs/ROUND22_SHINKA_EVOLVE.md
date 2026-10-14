@@ -38,6 +38,8 @@ screen -dmS vcell22 bash scripts/run_round22_autodl.sh \
 
 Same command with `--resume` continues the same frozen experiment. Shinka restores
 its database and population. Completed identical workers are verified and reused.
+Once `search_frozen.json` exists, resume bypasses the search and API altogether;
+confirmation or outer feedback cannot reopen evolution.
 Changed code, folds, model or budgets require a new run name. Attempts interrupted
 before a usage/result record keep their reserved budget; they are never billed as
 zero work. Failed worker retries create additional charged attempts.
@@ -130,9 +132,10 @@ Transfer specificity comparisons use the same common reference support.
 Context-target macro original-delta MSE, strong-gene error, norm ratio, target win
 fraction, background-subtracted direction/specificity and same-method ablation gains
 are reported. Smooth source search fitness allows small improvements to inform the
-next mutation; biological-success flags require >=1% gain over the strongest frozen
+next mutation; `signal_screen_passed` requires >=1% gain over the strongest frozen
 source-selected baseline, noncollapsed amplitude, defined strong masks, positive
-specificity and correct-input advantage. A scalar search score is not evidence of
+specificity and correct-input advantage against both wrong and shuffled controls.
+Passing this numerical screen is not a biological-success declaration. A scalar search score is not evidence of
 independent biological success.
 
 The top two distinct evolved codes per task freeze before source confirmation.

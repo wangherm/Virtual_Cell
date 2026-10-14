@@ -133,9 +133,11 @@ def evaluate(code,root,task,phase,output,execute_fn=execute):
     initial=(Path(plan['repo'])/'experiments/round22_evolve/initial.py').read_text(encoding='utf-8');validate_code(code,initial)
     if phase!='search' and not (root/'search_frozen.json').exists():raise ValueError('Confirmation/outer forbidden before search freeze')
     if phase=='outer' and not (root/'confirmation_frozen.json').exists():raise ValueError('Outer forbidden before confirmation freeze')
-    frames=[];bases=[];counter=[];fixed=[]
+    frames=[];bases=[];counter=[];fixed=[];runtime=[]
     for fold in data_plan['folds'][task][phase]:
         d,g,m=inputs(fold);pred=execute_fn(code,d,output/'workers'/fold['name']/'correct',plan['budget'],plan['python'])
+        rp=output/'workers'/fold['name']/'correct/output/runtime.json'
+        if rp.exists():runtime.append({'fold':fold['name'],'variant':'correct',**read(rp)})
         f=score(pred,g['truth'],g['background'],g['strong_mask'],m);f['fold']=fold['name'];f['method']='candidate'
         f['reference_available']=g['available'];f['common_support']=g['common'];f['globally_unknown']=g['unknown'];frames.append(f)
         per=[]
@@ -149,22 +151,16 @@ def evaluate(code,root,task,phase,output,execute_fn=execute):
         # Counterfactuals run the same generated method, source labels and seed.
         for variant in ('wrong','shuffled'):
             alt={k:v.copy() for k,v in d.items()}
-            if variant=='wrong':
-                alt['query_support']=g['wrong_support'];alt['query_x']=g['wrong_x'];alt['query_targets']=g['wrong_targets']
-                lookup={str(t):v for t,v in zip(np.r_[d['train_targets'],d['calibration_targets']],np.r_[d['train_prior'],d['calibration_prior']])}
-                alt['query_prior']=np.array([lookup.get(str(t),d['query_prior'][i]) for i,t in enumerate(g['wrong_targets'])])
-                xx={str(t):v for t,v in zip(np.r_[d['train_targets'],d['calibration_targets']],np.r_[d['train_x'],d['calibration_x']])}
-                control_dim=min(16,len(d['train_y'])+len(d['calibration_y']))
-                for i,t in enumerate(g['wrong_targets']):
-                    if str(t) in xx:alt['query_x'][i,control_dim:]=xx[str(t)][control_dim:]
-            else:
-                # Shuffle target-dependent features/support inside this query fold, keeping controls.
-                # One row per target in repeat folds; transfer permutes distinct target groups.
-                unique=sorted(set(d['query_targets']));rotation={t:unique[(i+1)%len(unique)] for i,t in enumerate(unique)}
-                shift=np.array([int(np.flatnonzero(d['query_targets']==rotation[t])[0]) for t in d['query_targets']]);control_dim=min(16,len(d['train_y'])+len(d['calibration_y']))
-                alt['query_support']=d['query_support'][shift];alt['query_x'][:,control_dim:]=d['query_x'][shift,control_dim:];alt['query_targets']=d['query_targets'][shift]
-                alt['query_prior']=d['query_prior'][shift]
+            alt['query_support']=g[variant+'_support'];alt['query_x']=g[variant+'_x'];alt['query_targets']=g[variant+'_targets']
+            lookup={str(t):v for t,v in zip(np.r_[d['train_targets'],d['calibration_targets']],np.r_[d['train_prior'],d['calibration_prior']])}
+            alt['query_prior']=np.array([lookup.get(str(t),d['query_prior'][i]) for i,t in enumerate(alt['query_targets'])])
+            xx={str(t):v for t,v in zip(np.r_[d['train_targets'],d['calibration_targets']],np.r_[d['train_x'],d['calibration_x']])}
+            control_dim=min(16,len(d['train_y'])+len(d['calibration_y']))
+            for i,t in enumerate(alt['query_targets']):
+                if str(t) in xx:alt['query_x'][i,control_dim:]=xx[str(t)][control_dim:]
             q=execute_fn(code,alt,output/'workers'/fold['name']/variant,plan['budget'],plan['python'])
+            rp=output/'workers'/fold['name']/variant/'output/runtime.json'
+            if rp.exists():runtime.append({'fold':fold['name'],'variant':variant,**read(rp)})
             cf=score(q,g['truth'],g['background'],g['strong_mask'],m);cf['variant']=variant;cf['fold']=fold['name'];cf['common_support']=g['common'];counter.append(cf)
     if not frames:raise ValueError('No legal folds for '+task+'/'+phase)
     frame=pd.concat(frames,ignore_index=True);base=pd.concat(bases,ignore_index=True);controls=pd.concat(counter,ignore_index=True)
@@ -172,9 +168,25 @@ def evaluate(code,root,task,phase,output,execute_fn=execute):
     public['reference_rows']=int(frame.reference_available.sum());public['query_rows']=len(frame)
     common=frame.loc[frame.common_support];wrong=controls.loc[controls.variant.eq('wrong') & controls.common_support]
     public['same_method_correct_vs_wrong_gain']=1-macro(common,'mse')/max(macro(wrong,'mse'),1e-12) if len(common) else None
-    public['biological_success']=bool(public['biological_success'] and public['same_method_correct_vs_wrong_gain'] is not None and public['same_method_correct_vs_wrong_gain']>0)
+    shuffled=controls.loc[controls.variant.eq('shuffled') & controls.common_support]
+    public['same_method_correct_vs_shuffled_gain']=1-macro(common,'mse')/max(macro(shuffled,'mse'),1e-12) if len(common) else None
+    public['signal_screen_passed']=bool(public['signal_screen_passed'] and public['same_method_correct_vs_wrong_gain'] is not None and public['same_method_correct_vs_wrong_gain']>0 and
+        public['same_method_correct_vs_shuffled_gain'] is not None and public['same_method_correct_vs_shuffled_gain']>0)
     combined+=10*(public['same_method_correct_vs_wrong_gain'] or 0.)
     frame.to_csv(output/'source_scores.csv',index=False);controls.to_csv(output/'counterfactual_scores.csv',index=False);pd.concat(fixed).to_csv(output/'fixed_scores.csv',index=False)
-    metrics={'combined_score':float(combined),'public':public,'private':{},'extra_data':{'task':task,'phase':phase,'code_sha256':hashlib.sha256(code.encode()).hexdigest()},
+    subsets=[]
+    for label,selection in {'all':np.ones(len(frame),bool),'common_reference_support':frame.common_support,'reference_available':frame.reference_available,
+            'reference_unavailable':~frame.reference_available,'globally_unknown':frame.globally_unknown,'known_target':~frame.globally_unknown}.items():
+        part=frame.loc[selection]
+        if len(part):subsets.append({'subset':label,'rows':len(part),'targets':int(part.target.nunique()),**{k:macro(part,k) for k in ('mse','zero_mse','background_mse','specificity_gap','strong_mse')}})
+    pd.DataFrame(subsets).to_csv(output/'subset_scores.csv',index=False)
+    grouped=[]
+    for context,part in frame.groupby('context'):
+        cb=base.loc[base.context.eq(context)];_,scores=fitness(part,cb);grouped.append({'context':context,**scores})
+    pd.DataFrame(grouped).to_csv(output/'context_scores.csv',index=False)
+    pd.DataFrame(runtime,columns=None if runtime else ['fold','variant','seconds','peak_vram_bytes','torch_optimizer_steps']).to_csv(output/'candidate_runtime.csv',index=False)
+    metrics={'combined_score':float(combined),'public':public,'private':{},'extra_data':{'task':task,'phase':phase,'code_sha256':hashlib.sha256(code.encode()).hexdigest(),
+        'method_seconds':sum(r['seconds'] for r in runtime) if runtime else None,'peak_vram_bytes':max((r['peak_vram_bytes'] for r in runtime),default=None),
+        'torch_optimizer_steps':sum(r['torch_optimizer_steps'] for r in runtime) if runtime else None,'cost_scope':'saved method runtime, including ablations; total charged process time is in evaluation_budget.json'},
         'text_feedback':json.dumps({'task':task,'scores':public,'objective':'Improve over strongest fixed baseline and use correct target information. Amplitude and specificity are diagnostic; no external success inferred.'})}
     write_json(output/'metrics.json',metrics);write_json(output/'correct.json',{'correct':True,'error':None});return metrics

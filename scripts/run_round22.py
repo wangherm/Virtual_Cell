@@ -127,44 +127,47 @@ def launch(a):
         # Rescore seed against the selected strongest numerical baseline.
         for task in a.tasks:evaluate(initial,root,task,'search',root/'fixed'/task/'second')
         if a.mode=='smoke':stage(root,'numeric smoke complete; live provider and search not run');return root
-        key=os.environ.get('DEEPSEEK_API_KEY')
-        if not key:raise RuntimeError('Set DEEPSEEK_API_KEY in trusted orchestrator environment')
-        token=secrets.token_hex(24);shinka=read(root/'run_plan.json')['shinka_python']
-        if not Path(shinka).is_file():raise ValueError('Install isolated Shinka venv with scripts/install_round22_autodl.sh')
-        with Gateway(root/'api_ledger.json',key,a.model,token,a.api_requests,a.api_output_tokens,a.port):
+        if not (root/'search_frozen.json').exists():
+            key=os.environ.get('DEEPSEEK_API_KEY')
+            if not key:raise RuntimeError('Set DEEPSEEK_API_KEY in trusted orchestrator environment')
+            token=secrets.token_hex(24);shinka=read(root/'run_plan.json')['shinka_python']
+            if not Path(shinka).is_file():raise ValueError('Install isolated Shinka venv with scripts/install_round22_autodl.sh')
+            with Gateway(root/'api_ledger.json',key,a.model,token,a.api_requests,a.api_output_tokens,a.port):
+                for task in a.tasks:
+                    stage(root,'ShinkaEvolve method search',task=task,generations=a.generations)
+                    env=worker_env();env.update(ROUND22_GATEWAY_KEY=token,ROUND22_ROOT=str(root),ROUND22_TASK=task,SHINKA_PRICING_MODE='offline')
+                    command=[shinka,str(REPO/'scripts/run_shinka_round22.py'),'--root',str(root),'--repo',str(REPO),'--task',task,'--python',sys.executable,
+                        '--generations',str(a.generations),'--model',a.model,'--port',str(a.port)]
+                    (root/'logs').mkdir(exist_ok=True)
+                    if not (root/'provider_verified.json').exists():
+                        stage(root,'one tiny Shinka/DeepSeek provider smoke; no research data')
+                        with (root/'logs/provider_smoke.log').open('a',encoding='utf-8') as log:
+                            result=subprocess.run([*command,'--provider-smoke'],env=env,stdout=log,stderr=subprocess.STDOUT)
+                        if result.returncode:raise RuntimeError('Provider compatibility smoke failed; inspect logs/provider_smoke.log')
+                    with (root/'logs'/f'shinka_{task}.log').open('a',encoding='utf-8') as log:
+                        result=subprocess.run(command,env=env,stdout=log,stderr=subprocess.STDOUT)
+                    if result.returncode:raise RuntimeError('Shinka runner failed; inspect '+str(root/'logs'/f'shinka_{task}.log'))
+                    stage(root,'equal candidate-count random mutation control',task=task)
+                    for i in range(a.generations):
+                        out=root/'random'/task/f'trial_{i:03d}';out.mkdir(parents=True,exist_ok=True);code=random_program(a.seed+i);freeze(out/'recipe.json',{'seed':a.seed+i,'scope':'rank/penalty/centering grammar; narrower than arbitrary generated code'})
+                        (out/'candidate.py').write_text(code)
+                        if not (out/'correct.json').exists():
+                            try:evaluate(code,root,task,'search',out)
+                            except Exception as exc:
+                                write_json(out/'correct.json',{'correct':False,'error':str(exc)});write_json(out/'metrics.json',{'combined_score':-1000000.,'public':{},'private':{}})
+            records=[r for task in a.tasks for r in programs(root,task)];chosen=[]
             for task in a.tasks:
-                stage(root,'ShinkaEvolve method search',task=task,generations=a.generations)
-                env=worker_env();env.update(ROUND22_GATEWAY_KEY=token,ROUND22_ROOT=str(root),ROUND22_TASK=task,SHINKA_PRICING_MODE='offline')
-                command=[shinka,str(REPO/'scripts/run_shinka_round22.py'),'--root',str(root),'--repo',str(REPO),'--task',task,'--python',sys.executable,
-                    '--generations',str(a.generations),'--model',a.model,'--port',str(a.port)]
-                (root/'logs').mkdir(exist_ok=True)
-                if not (root/'provider_verified.json').exists():
-                    stage(root,'one tiny Shinka/DeepSeek provider smoke; no research data')
-                    with (root/'logs/provider_smoke.log').open('a',encoding='utf-8') as log:
-                        result=subprocess.run([*command,'--provider-smoke'],env=env,stdout=log,stderr=subprocess.STDOUT)
-                    if result.returncode:raise RuntimeError('Provider compatibility smoke failed; inspect logs/provider_smoke.log')
-                with (root/'logs'/f'shinka_{task}.log').open('a',encoding='utf-8') as log:
-                    result=subprocess.run(command,env=env,stdout=log,stderr=subprocess.STDOUT)
-                if result.returncode:raise RuntimeError('Shinka runner failed; inspect '+str(root/'logs'/f'shinka_{task}.log'))
-                stage(root,'equal candidate-count random mutation control',task=task)
-                for i in range(a.generations):
-                    out=root/'random'/task/f'trial_{i:03d}';out.mkdir(parents=True,exist_ok=True);code=random_program(a.seed+i);freeze(out/'recipe.json',{'seed':a.seed+i,'scope':'rank/penalty/centering grammar; narrower than arbitrary generated code'})
-                    (out/'candidate.py').write_text(code)
-                    if not (out/'correct.json').exists():
-                        try:evaluate(code,root,task,'search',out)
-                        except Exception as exc:
-                            write_json(out/'correct.json',{'correct':False,'error':str(exc)});write_json(out/'metrics.json',{'combined_score':-1000000.,'public':{},'private':{}})
-        records=[r for task in a.tasks for r in programs(root,task)];chosen=[]
-        for task in a.tasks:
-            for arm in ('shinka','random','fixed'):
-                candidates=sorted([r for r in records if r['task']==task and r['arm']==arm and (arm!='shinka' or r['generation']>0)],key=lambda r:r['metrics']['combined_score'],reverse=True)
-                # Two evolution finalists; one random and one fixed comparator.
-                seen=set()
-                for r in candidates:
-                    if r['sha256'] in seen:continue
-                    seen.add(r['sha256']);chosen.append(r)
-                    if len(seen)>=(2 if arm=='shinka' else 1):break
-        freeze(root/'search_frozen.json',{'candidates':chosen,'baseline_selection':selections,'confirmation_used':False,'outer_used':False})
+                for arm in ('shinka','random','fixed'):
+                    candidates=sorted([r for r in records if r['task']==task and r['arm']==arm and (arm!='shinka' or r['generation']>0)],key=lambda r:r['metrics']['combined_score'],reverse=True)
+                    # Two evolution finalists; one random and one fixed comparator.
+                    seen=set()
+                    for r in candidates:
+                        if r['sha256'] in seen:continue
+                        seen.add(r['sha256']);chosen.append(r)
+                        if len(seen)>=(2 if arm=='shinka' else 1):break
+            freeze(root/'search_frozen.json',{'candidates':chosen,'all_records':records,'baseline_selection':selections,'confirmation_used':False,'outer_used':False})
+        else:
+            snapshot=read(root/'search_frozen.json');chosen=snapshot['candidates'];records=snapshot['all_records']
         confirmations=[]
         for i,r in enumerate(chosen):
             stage(root,'frozen source confirmation',task=r['task'],candidate=i+1,total=len(chosen))
@@ -194,7 +197,7 @@ def launch(a):
             'tasks_separate':True,'test_evaluated':False,'framework':'ShinkaEvolve 0.0.7','encoder':plan['scope'],
             'random_control_scope':'Same starting program and candidate-count/worker limits; fixed rank/penalty/centering mutation grammar, not unrestricted code-search equivalence',
             'no_Qwen_pretrained_inference':True,'repeat_is_not_zero_shot':True,'raw_data_changed':False,'HT29_evaluated':False,
-            'confirmed_agent_signal':{t:r['confirmation_metrics']['public']['biological_success'] if r else False for t,r in winners.items()},
+            'confirmation_signal_screen_passed':{t:r['confirmation_metrics']['public']['signal_screen_passed'] if r else False for t,r in winners.items()},
             'valid_evolved_candidates':{t:len([r for r in records if r['task']==t and r['arm']=='shinka' and r['generation']>0]) for t in a.tasks},
             'baseline_retained_unless_confirmed':True,'outer_candidates_exploratory':True,
             'agent_success':'Code search and confirmation are reported separately from biological success; tiny near-zero MSE gains do not meet promotion criteria'})

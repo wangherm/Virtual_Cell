@@ -74,9 +74,9 @@ def test_evaluator_rejects_modified_input_or_trusted_code(tmp_path,monkeypatch):
 def test_zero_and_near_zero_not_biological_success():
     truth=np.eye(5);background=np.zeros_like(truth);meta=pd.DataFrame({'context':['C']*5,'target':list('ABCDE')})
     zero=metrics.score(background,truth,background,np.ones_like(truth,bool),meta)
-    _,s=metrics.fitness(zero,zero);assert not s['biological_success']
+    _,s=metrics.fitness(zero,zero);assert not s['signal_screen_passed']
     tiny=metrics.score(truth*.001,truth,background,np.ones_like(truth,bool),meta)
-    _,s=metrics.fitness(tiny,zero);assert s['gain_over_fixed']>0 and not s['biological_success']
+    _,s=metrics.fitness(tiny,zero);assert s['gain_over_fixed']>0 and not s['signal_screen_passed']
 
 
 def test_macro_target_equal_weight_not_record_count():
@@ -149,6 +149,10 @@ def test_fresh_source_partitions_exclude_confirmation_and_outer_truth(tmp_path,m
             d,g,m=evaluator.inputs(f)
             assert confirmation.isdisjoint(d['train_targets']) and confirmation.isdisjoint(d['query_targets'])
             assert 'HAP1_IFNG' not in set(meta.iloc[f['source_train_rows']].context)
+            d,g,_=evaluator.inputs(f)
+            for variant in ('wrong','shuffled'):
+                supported=g['common']
+                assert np.all(g[variant+'_targets'][supported]!=d['query_targets'][supported])
     # Poison only labels that must remain invisible throughout adaptive search.
     poison=meta.context.eq('HAP1_IFNG') | meta.perturbation.isin(confirmation)
     fake['delta'][poison.to_numpy()]=10000.
@@ -157,3 +161,29 @@ def test_fresh_source_partitions_exclude_confirmation_and_outer_truth(tmp_path,m
         for f,g in zip(p['folds'][task]['search'],p2['folds'][task]['search']):
             assert f['input_sha256']==g['input_sha256']
             assert f['grade_sha256']==g['grade_sha256']
+
+
+def test_frozen_resume_cannot_reopen_api_or_search(tmp_path,monkeypatch):
+    from argparse import Namespace
+    m=module();parent=tmp_path/'parent';parent.mkdir();(parent/'COMPLETE.json').write_text('{}')
+    root=tmp_path/'runs/pilot'
+    def prepare_fixture(parent,root,context,seed):
+        original=json.loads((root/'run_plan.json').read_text());record=packed(root)
+        write_json(root/'run_plan.json',original)
+        plan=json.loads((root/'data_plan.json').read_text());plan.update(raw_controls_verified=True,scope='synthetic controller fixture')
+        write_json(root/'data_plan.json',plan);return plan
+    monkeypatch.setattr(m,'prepare',prepare_fixture);monkeypatch.setattr(m,'preflight',lambda *a:None)
+    monkeypatch.setattr(m,'evaluate',lambda *a,**k:evaluator.evaluate(*a,**k,execute_fn=lambda code,d,*args:d['query_support']))
+    a=Namespace(work_dir=str(tmp_path),name='pilot',round21_run=str(parent),resume=False,steps=1,worker_seconds=25,seed=17,device='cpu',evaluation_hours=1.,
+        generations=2,tasks=['repeat'],outer_context='HAP1_IFNG',api_requests=3,api_output_tokens=20000,model='m',port=18022,shinka_python=sys.executable,mode='smoke')
+    m.launch(a)
+    source=json.loads((root/'fixed/repeat/second/metrics.json').read_text())
+    record={'arm':'shinka','task':'repeat','generation':1,'code':str(REPO/'experiments/round22_evolve/initial.py'),'sha256':file_sha256(REPO/'experiments/round22_evolve/initial.py'),'metrics':source}
+    write_json(root/'search_frozen.json',{'candidates':[record],'all_records':[record],'baseline_selection':json.loads((root/'baseline_selection.json').read_text())})
+    stamp=file_sha256(root/'search_frozen.json');monkeypatch.delenv('DEEPSEEK_API_KEY',raising=False)
+    monkeypatch.setattr(m,'Gateway',lambda *a,**k:pytest.fail('A frozen search must never create an API relay'))
+    a.resume=True;a.mode='run';m.launch(a)
+    assert (root/'COMPLETE.json').exists() and file_sha256(root/'search_frozen.json')==stamp
+    assert json.loads((root/'confirmation_frozen.json').read_text())['outer_used'] is False
+    # Already complete resume also verifies the complete artifact without source fitting.
+    m.launch(a)

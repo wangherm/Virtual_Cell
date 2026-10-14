@@ -7,7 +7,7 @@ p=argparse.ArgumentParser();p.add_argument('--work-dir',default='/root/autodl-tm
 root=Path(a.work_dir)/'runs'/a.name
 for name in ('stage.json','sandbox_verified.json','worker_progress.json','INCOMPLETE.json'):
     path=root/name
-    if path.exists():print(name,json.dumps(json.loads(path.read_text()),indent=2))
+    if path.exists():print(name+(' (last failure; may remain during resume)' if name=='INCOMPLETE.json' else ''),json.dumps(json.loads(path.read_text()),indent=2))
 for task in ('repeat','transfer'):
     records=[json.loads(p.read_text()) for p in (root/'evolution'/task).glob('gen_*/results/correct.json')]
     print(task,'Shinka evaluated:',dict(Counter('valid' if r.get('correct') else 'failed' for r in records)))

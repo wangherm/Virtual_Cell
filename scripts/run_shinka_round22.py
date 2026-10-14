@@ -42,6 +42,9 @@ def main():
     runner=ShinkaEvolveRunner(evo_config=evo,job_config=job,db_config=DatabaseConfig(**cfg['db']),
         max_evaluation_jobs=1,max_proposal_jobs=1,max_db_workers=1)
     runner.run()
+    (root/'evolution'/a.task/'framework_state.json').write_text(json.dumps({'target_generations':a.generations,
+        'stored_generations':runner.completed_generations,'proposals_generated':runner.total_proposals_generated,'framework_returned':True}))
+    if runner.completed_generations<a.generations:raise RuntimeError('Framework stopped before requested generation budget; inspect failed proposals and API ledger')
 
 
 if __name__=='__main__':main()
