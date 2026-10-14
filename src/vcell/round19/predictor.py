@@ -21,10 +21,15 @@ class DeepSeekPredictor(nn.Module):
         self.rank=output_rank;self.teacher_rank=teacher_rank
         self.backbone=None
         if recipe['backbone']!='mlp':
-            from transformers import AutoModel
+            from transformers import AutoModel,AutoConfig
+            head_rng=torch.random.get_rng_state()
             dtype={'float32':torch.float32,'bfloat16':torch.bfloat16}[spec['dtype']]
-            base=AutoModel.from_pretrained(spec['model_dir'],local_files_only=True,trust_remote_code=False,
-                dtype=dtype,attn_implementation='sdpa')
+            if spec.get('random_frozen',False):
+                config=AutoConfig.from_pretrained(spec['model_dir'],local_files_only=True,trust_remote_code=False)
+                base=AutoModel.from_config(config,trust_remote_code=False,attn_implementation='sdpa').to(dtype=dtype)
+            else:
+                base=AutoModel.from_pretrained(spec['model_dir'],local_files_only=True,trust_remote_code=False,
+                    dtype=dtype,attn_implementation='sdpa')
             if base.config.model_type not in ('qwen2','qwen3'):raise ValueError('Pinned Qwen-family local backbone required')
             base.config.use_cache=False
             for p in base.parameters():p.requires_grad_(False)
@@ -33,6 +38,8 @@ class DeepSeekPredictor(nn.Module):
                 base=get_peft_model(base,LoraConfig(task_type=TaskType.FEATURE_EXTRACTION,r=8,lora_alpha=16,
                     lora_dropout=0.,target_modules=['q_proj','v_proj'],bias='none'))
             base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant':False})
+            # Backbone initialization must not change the paired numeric-head seed.
+            torch.random.set_rng_state(head_rng)
             self.backbone=base;hidden=base.config.hidden_size
             self.control=nn.Linear(control_dim,hidden)
             self.target=nn.Linear(target_dim,hidden)
@@ -44,6 +51,14 @@ class DeepSeekPredictor(nn.Module):
                 nn.GELU(),nn.LayerNorm(hidden))
         self.output=nn.Sequential(nn.LayerNorm(hidden),nn.Linear(hidden,recipe['width']),nn.GELU(),nn.Linear(recipe['width'],output_rank))
         self.gate=nn.Linear(hidden,len(TEACHERS)) if recipe['structure']=='gate' else None
+        scale=spec.get('correction_scale',.05)
+        if scale=='learned':self.scale_logit=nn.Parameter(torch.tensor(float(np.log(.05/.95))))
+        elif isinstance(scale,bool) or not isinstance(scale,(int,float)) or not 0<float(scale)<=1:
+            raise ValueError('Correction scale must be in (0,1] or learned')
+        else:self.register_buffer('fixed_scale',torch.tensor(float(scale)))
+
+    def amplitude_scale(self):
+        return self.scale_logit.sigmoid() if hasattr(self,'scale_logit') else self.fixed_scale
 
     def forward(self,control,target,teachers,prompt_ids=None,prompt_mask=None):
         if not self.recipe['use_string']:target=target*0
@@ -59,7 +74,7 @@ class DeepSeekPredictor(nn.Module):
                             torch.ones((len(control),1),device=control.device,dtype=torch.long)],1)
             positions=(mask.cumsum(-1)-1).clamp_min(0)
             h=self.backbone(inputs_embeds=values,attention_mask=mask,position_ids=positions,use_cache=False).last_hidden_state[:,-1].float()
-        correction=.05*self.output(h)
+        correction=self.amplitude_scale()*self.output(h)
         if self.recipe['structure']=='direct':return correction
         coeff=teachers[:,:,:self.rank]
         if self.gate is not None:
@@ -116,7 +131,9 @@ def train_worker(cfg,resume=False):
           'total_parameters':sum(p.numel() for p in model.parameters()),
           'trainable_parameters':sum(p.numel() for p in model.parameters() if p.requires_grad),
           'actual_response_rank':rank,'model_identity':cfg['model']['identity'],
-          'pretrained_language_backbone':recipe['backbone']!='mlp'}
+          'pretrained_language_backbone':recipe['backbone']!='mlp' and not cfg['model'].get('random_frozen',False),
+          'correction_scale':cfg['model'].get('correction_scale',.05),
+          'prompt_mode':cfg['model'].get('prompt_mode','original')}
     freeze(dest/'model_info.json',info)
     features={k:torch.tensor(d[k]) for k in ('control','target','teachers')}
     if recipe['backbone']!='mlp':
@@ -124,7 +141,11 @@ def train_worker(cfg,resume=False):
         tokenizer=AutoTokenizer.from_pretrained(cfg['model']['model_dir'],local_files_only=True,trust_remote_code=False)
         tokenizer.padding_side='right'
         if tokenizer.pad_token_id is None:tokenizer.pad_token=tokenizer.eos_token
-        encoded=tokenizer(d['prompt_texts'].tolist(),padding=True,truncation=True,max_length=64,return_tensors='pt')
+        texts=d['prompt_texts'].tolist()
+        if cfg['model'].get('prompt_mode','original')=='shuffled_target':
+            from ..round20.signal import shuffle_target_prompts
+            texts=shuffle_target_prompts(texts,d['target_codes'],cfg['seed'])
+        encoded=tokenizer(texts,padding=True,truncation=True,max_length=64,return_tensors='pt')
         features.update(prompt_ids=encoded['input_ids'],prompt_mask=encoded['attention_mask'])
     else:
         features.update(prompt_ids=torch.zeros((len(d['control']),1),dtype=torch.long),
@@ -134,6 +155,10 @@ def train_worker(cfg,resume=False):
     y=torch.tensor(y,device=device);bt=torch.tensor(basis,device=device)
     context=torch.tensor(d['context_codes'],device=device);target=torch.tensor(d['target_codes'],device=device)
     w=d['fit_weights'];cw=d['calibration_weights'];first=0;best=float('inf');history=[];best_state=None
+    if cfg.get('exposure_weights'):
+        ew=arrays(cfg['exposure_weights']);w=ew['fit_weights'];cw=ew['calibration_weights']
+        if len(w)!=len(fit) or len(cw)!=len(cal) or not np.isclose(w.sum(),1) or not np.isclose(cw.sum(),1):
+            raise ValueError('Exposure weights must match source label rows')
     opt=torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],lr=recipe['learning_rate'],weight_decay=recipe['weight_decay'])
     if resume and (dest/'last.pt').exists():
         s=torch.load(dest/'last.pt',map_location='cpu',weights_only=True)
@@ -160,7 +185,12 @@ def train_worker(cfg,resume=False):
             score=float(cw@np.square(pred-labels['calibration_delta']).mean(1))
             if not np.isfinite(score):raise FloatingPointError('Nonfinite source calibration')
             if score<best:best=score;best_state=model.trainable_state()
-            history.append({'step':done,'source_calibration_mse_normalized':score,'fit_loss':loss.item()})
+            fp=infer(model,features,fit,device,cfg['batch_size'])@basis
+            history.append({'step':done,'source_calibration_mse_normalized':score,'fit_loss':loss.item(),
+                'source_fit_mse_normalized':float(w@np.square(fp-labels['fit_delta']).mean(1)),
+                'fit_prediction_to_truth_norm':float((w@np.linalg.norm(fp,axis=1))/max(w@np.linalg.norm(labels['fit_delta'],axis=1),1e-12)),
+                'calibration_prediction_to_truth_norm':float((cw@np.linalg.norm(pred,axis=1))/max(cw@np.linalg.norm(labels['calibration_delta'],axis=1),1e-12)),
+                'amplitude_scale':float(model.amplitude_scale().detach().cpu())})
             atomic_torch_save({'fingerprint':stamp,'step':done,'state':model.trainable_state(),'optimizer':opt.state_dict(),
                 'best':best,'best_state':best_state,'history':history},dest/'last.pt')
             write_json(dest/'progress.json',{'step':done,'max_steps':cfg['max_steps'],'elapsed_seconds':perf_counter()-timer})

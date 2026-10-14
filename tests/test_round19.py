@@ -231,6 +231,9 @@ def test_controller_actually_completes_100_rounds_and_200_calls(tmp_path,monkeyp
     old=read(root/'plan.json');old.pop('truncation_recovery');old['code']='d848df19638e352029b1454aa899fa9291ff78829a50444500bd84246cc63ad0'
     write_json(root/'plan.json',old)
     monkeypatch.setattr(runner.recovery,'call',original)
+    # This mocked migration emulates the historical, unchanged model namespace.
+    # New predictor options deliberately cannot migrate a real old running model.
+    monkeypatch.setattr(runner.recovery,'namespace_identity',lambda:runner.recovery.LEGACY_MODEL_NAMESPACE)
     root=runner.main(command+['--resume','--repair-truncated-responses']);verify(root);progress=read(root/'iteration_progress.json')
     assert progress['completed_rounds']==progress['evaluated_candidates']==100
     assert len(a.calls)==len(b.calls)==100 and progress['training_api']['attempted_requests']==100

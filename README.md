@@ -37,6 +37,20 @@ and optional LoRA. Separate API scientists propose and review 100 source-only
 candidate rounds, with cross-fitted numerical teachers, fixed fusion/MLP/Qwen
 controls, durable accounting and private evaluation after recipe freeze.
 
+[Round20 signal and reference controls](docs/ROUND20_SIGNAL_AND_REFERENCE.md) audits
+technical replicate consistency, calibrates prediction amplitude using source OOF,
+tests pretrained/random/MLP controls, and learns a bounded correction to legal
+same-target experimental references. Reproducible nonzero source gains gate a
+maximum twelve-slot fixed/random/single/dual comparison. Agents can design small
+head code and parameters inside the existing isolated admission protocol; they
+cannot change data partitions or evaluation. All choices freeze before held
+development scoring, and a failed signal gate yields an explicit negative report.
+
+```bash
+bash scripts/run_round20_autodl.sh --name round20_signal_01 --parallel-jobs 3
+.venv/bin/python scripts/round20_status.py --name round20_signal_01
+```
+
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
 ```
