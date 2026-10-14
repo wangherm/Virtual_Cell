@@ -177,6 +177,14 @@ the network or either credential. Large matrices remain on the server.
 
 ## Outputs and verification limits
 
+The fixed-method smoke compares scientific metrics, per-context feedback and code
+identity exactly. Execution time, peak GPU allocation and optimizer-step telemetry
+remain in the reports but are excluded from this prediction reproducibility check.
+If a run stopped with `Fixed-method metrics did not reproduce exactly` on the
+initial release, update the code and use a new run name (for example
+`round22_evolve_02`); the old run's frozen code hash must remain intact. Existing
+datasets, the installed Shinka environment and the failed run are retained.
+
 Read `summary.json`, `comparison.csv`, `search_frozen.json`,
 `confirmation_frozen.json`, `api_ledger.json`, `sandbox_verified.json`, and
 `evaluation_budget.json`. The light review archive is:

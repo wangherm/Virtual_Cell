@@ -27,6 +27,19 @@ def stage(root,value,**kwargs):
     write_json(root/'stage.json',{'stage':value,'test_evaluated':False,**kwargs});print('ROUND22 STAGE:',value,kwargs,flush=True)
 
 
+def check_fixed_reproduction(first,second):
+    """Compare scientific results exactly; runtime measurements are not predictions."""
+    def scientific(record):
+        result=dict(record)
+        result['extra_data']={k:v for k,v in record.get('extra_data',{}).items()
+            if k not in ('method_seconds','peak_vram_bytes','torch_optimizer_steps','cost_scope')}
+        return result
+    left,right=scientific(first),scientific(second)
+    if left!=right:
+        changed=sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k))
+        raise ValueError('Fixed-method scientific metrics did not reproduce exactly: '+', '.join(changed))
+
+
 def preflight(root,budget,python):
     """Real adversarial IO probes in the same kernel boundary used for candidates."""
     forbidden=root/'private'/'sandbox_hidden.txt';forbidden.parent.mkdir(parents=True,exist_ok=True);forbidden.write_text('hidden grader sentinel')
@@ -121,7 +134,7 @@ def launch(a):
         for task in a.tasks:
             first=evaluate(initial,root,task,'search',root/'fixed'/task/'first')
             second=evaluate(initial,root,task,'search',root/'fixed'/task/'second')
-            if first!=second:raise ValueError('Fixed-method metrics did not reproduce exactly')
+            check_fixed_reproduction(first,second)
             f=pd.read_csv(root/'fixed'/task/'first'/'fixed_scores.csv')
             selections[task]=min(f.method.unique(),key=lambda m:macro(f[f.method.eq(m)],'mse'))
         freeze(root/'baseline_selection.json',selections)

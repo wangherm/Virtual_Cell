@@ -36,6 +36,25 @@ def test_mutable_whole_method_immutable_grader_wrapper():
     with pytest.raises(ValueError):evaluator.validate_code(changed.replace('# EVOLVE-BLOCK-END',''),INITIAL)
 
 
+def test_fixed_reproduction_compares_science_not_runtime():
+    import copy
+    first={'combined_score':1.,'public':{'macro_mse':.01},'private':{},
+        'extra_data':{'task':'repeat','phase':'search','code_sha256':'same',
+            'method_seconds':1.2,'peak_vram_bytes':100,'torch_optimizer_steps':1,'cost_scope':'runtime'},
+        'text_feedback':json.dumps({'by_source_context':[{'context':'BXPC3','mse':.01}]})}
+    second=copy.deepcopy(first)
+    second['extra_data'].update(method_seconds=2.3,peak_vram_bytes=200,torch_optimizer_steps=2)
+    m=module();m.check_fixed_reproduction(first,second)
+    assert first['extra_data']['method_seconds']==1.2
+    for key in ('combined_score','public','text_feedback','extra_data'):
+        changed=copy.deepcopy(second)
+        if key=='combined_score':changed[key]+=1e-12
+        elif key=='public':changed[key]['macro_mse']+=1e-12
+        elif key=='text_feedback':changed[key]='different context scores'
+        else:changed[key]['code_sha256']='changed'
+        with pytest.raises(ValueError,match=key):m.check_fixed_reproduction(first,changed)
+
+
 def test_pack_never_exports_query_truth_and_ids_are_opaque(tmp_path):
     record=packed(tmp_path);d,g,m=evaluator.inputs(record)
     assert 'truth' not in d and 'query_y' not in d and 'query_rep2' not in d
@@ -173,7 +192,14 @@ def test_frozen_resume_cannot_reopen_api_or_search(tmp_path,monkeypatch):
         plan=json.loads((root/'data_plan.json').read_text());plan.update(raw_controls_verified=True,scope='synthetic controller fixture')
         write_json(root/'data_plan.json',plan);return plan
     monkeypatch.setattr(m,'prepare',prepare_fixture);monkeypatch.setattr(m,'preflight',lambda *a:None)
-    monkeypatch.setattr(m,'evaluate',lambda *a,**k:evaluator.evaluate(*a,**k,execute_fn=lambda code,d,*args:d['query_support']))
+    runtimes=[]
+    def evaluate_fixture(*args,**kwargs):
+        result=evaluator.evaluate(*args,**kwargs,execute_fn=lambda code,d,*rest:d['query_support'])
+        # Two real executions report different durations despite identical predictions.
+        runtimes.append(len(runtimes)+1.)
+        result['extra_data']['method_seconds']=runtimes[-1]
+        return result
+    monkeypatch.setattr(m,'evaluate',evaluate_fixture)
     a=Namespace(work_dir=str(tmp_path),name='pilot',round21_run=str(parent),resume=False,steps=1,worker_seconds=25,seed=17,device='cpu',evaluation_hours=1.,
         generations=2,tasks=['repeat'],outer_context='HAP1_IFNG',api_requests=3,api_output_tokens=20000,model='m',port=18022,shinka_python=sys.executable,mode='smoke')
     m.launch(a)
