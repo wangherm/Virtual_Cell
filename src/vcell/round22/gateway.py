@@ -40,6 +40,9 @@ class Gateway:
         started=time.monotonic()
         try:
             body['max_tokens']=cap;body['reasoning_effort']='high';body['thinking']={'type':'enabled'};body['n']=1
+            # Match the already-working high-thinking provider contract used in
+            # this project; sampling controls are not a mutation search variable.
+            body.pop('temperature',None);body.pop('top_p',None)
             r=requests.post(self.endpoint+'/chat/completions',json=body,headers={'Authorization':'Bearer '+self.key},timeout=(15,240));data=r.json()
             usage=data.get('usage',{});choice=(data.get('choices') or [{}])[0]
             record.update(status='complete' if r.ok and choice.get('finish_reason')=='stop' else 'failed',http_status=r.status_code,

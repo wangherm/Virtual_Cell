@@ -38,10 +38,11 @@ def fit_predict(data,budget):
     import os, socket, subprocess
     from pathlib import Path
     rejected=0
-    for action in (lambda: Path({str(forbidden)!r}).read_text(),lambda: Path({str(other)!r}).write_text('bad'),lambda:socket.socket(),lambda:subprocess.run(['/bin/true'])):
+    for action in (lambda: Path({str(forbidden)!r}).read_text(),lambda: Path({str(other)!r}).write_text('bad'),lambda:socket.socket(),lambda:subprocess.run(['/bin/true']),
+        lambda:os.chmod({str(forbidden)!r},0o777),lambda:os.truncate({str(forbidden)!r},0),lambda:os.open({str(forbidden)!r},os.O_RDONLY|os.O_TRUNC)):
         try: action()
         except (PermissionError,OSError): rejected+=1
-    if rejected!=4: raise RuntimeError('Candidate isolation did not reject all forbidden actions')
+    if rejected!=7: raise RuntimeError('Candidate isolation did not reject all forbidden actions')
     model=torch.nn.Linear(2,1).to(budget['device'])
     optimizer=torch.optim.AdamW(model.parameters(),lr=.01)
     optimizer.zero_grad();model(torch.ones((2,2),device=budget['device'])).square().mean().backward();optimizer.step()
@@ -51,8 +52,8 @@ def fit_predict(data,budget):
     data={'query_ids':np.array(['opaque']), 'query_targets':np.array(['probe']),'genes':np.array(['probe_gene'])}
     execute(code,data,root/'preflight',budget,python)
     if other.exists():raise RuntimeError('Outside write escaped sandbox')
-    write_json(root/'sandbox_verified.json',{'boundary':'Landlock ABI>=3 + libseccomp; no prompt or AST sandbox claim',
-        'denied':['hidden label read','outside write','network socket','subprocess execution'],'device':budget['device'],'verified':True})
+    write_json(root/'sandbox_verified.json',{'boundary':'Landlock + libseccomp including truncate/metadata guards; no prompt or AST sandbox claim',
+        'denied':['hidden label read','outside write','network socket','subprocess execution','outside chmod','outside truncate','read-only truncating open'],'device':budget['device'],'verified':True})
 
 
 def random_program(seed):

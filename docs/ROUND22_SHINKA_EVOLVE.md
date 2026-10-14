@@ -155,7 +155,9 @@ documented `metrics.json` / `correct.json` contract, but never import generated 
 inside the trusted grader or stock unrestricted `run_shinka_eval` loader.
 
 Before loading any generated module, a standalone child applies Linux Landlock ABI
->=3 and libseccomp. Allowed reads are runtime libraries, its code and public input
+>=1 and libseccomp. Older ABIs have additional syscall guards for truncate/open
+semantics; metadata-changing calls and filesystem mutation ioctls are denied in all
+versions. Allowed reads are runtime libraries, its code and public input
 pack; allowed writes are its own output and standard random/null devices. Network,
 process creation, execution, ptrace/process-memory access, privilege changes and
 namespace/mount operations are denied. Native numerical threads are allowed. A

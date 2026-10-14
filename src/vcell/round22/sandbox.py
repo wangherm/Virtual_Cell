@@ -10,14 +10,14 @@ import sys
 
 def restrict(read_paths, write_paths):
     if sys.platform != 'linux' or platform.machine() not in ('x86_64', 'aarch64'):
-        raise RuntimeError('Round22 generated code requires Linux Landlock ABI >=3 and libseccomp')
+        raise RuntimeError('Round22 generated code requires Linux Landlock and libseccomp')
     libc=c.CDLL(None,use_errno=True)
     sec_library=ctypes.util.find_library('seccomp') or 'libseccomp.so.2'
     libc.syscall.restype=c.c_long
     abi=libc.syscall(444,0,0,1)
-    if abi<3:raise RuntimeError('Landlock ABI >=3 required; no candidate executed')
+    if abi<1:raise RuntimeError('Landlock required; no candidate executed')
     # EXECUTE, WRITE_FILE, READ_FILE, READ_DIR, REMOVE, MAKE, REFER, TRUNCATE.
-    handled=(1<<15)-1
+    handled=(1<<(15 if abi>=3 else 14 if abi>=2 else 13))-1
     class Ruleset(c.Structure):_fields_=[('handled_access_fs',c.c_uint64)]
     class Rule(c.Structure):
         _pack_=1
@@ -30,6 +30,7 @@ def restrict(read_paths, write_paths):
             if not path.exists():continue
             access=sum(1<<i for i in (1,2,3,4,5,7,8,13,14)) if write else ((1<<2)|(1<<3) if path.is_dir() else 1<<2)
             if write and not path.is_dir():access=(1<<1)|(1<<2)|(1<<14)
+            access &= handled
             parent=os.open(path,os.O_PATH|os.O_CLOEXEC)
             try:
                 rule=Rule(access,parent)
@@ -52,13 +53,25 @@ def restrict(read_paths, write_paths):
                      'ptrace','process_vm_readv','process_vm_writev','mount','umount2','pivot_root','unshare','setns','bpf',
                      'open_by_handle_at','name_to_handle_at','io_uring_setup','io_uring_enter','io_uring_register',
                      'kill','tkill','pidfd_open','pidfd_getfd','pidfd_send_signal','setuid','setgid','setresuid','setresgid','capset',
-                     'mknod','mknodat','setrlimit','prlimit64'):
+                     'mknod','mknodat','setrlimit','prlimit64','truncate','ftruncate','truncate64','ftruncate64',
+                     'chmod','fchmod','fchmodat','fchmodat2','chown','fchown','lchown','fchownat','utime','utimes','utimensat','futimesat',
+                     'setxattr','lsetxattr','fsetxattr','removexattr','lremovexattr','fremovexattr'):
             nr=sec.seccomp_syscall_resolve_name(name.encode())
             if nr>=0 and sec.seccomp_rule_add(ctx,denied,nr,0)!=0:raise RuntimeError('seccomp deny failed: '+name)
         class Arg(c.Structure):_fields_=[('arg',c.c_uint),('op',c.c_int),('a',c.c_uint64),('b',c.c_uint64)]
         sec.seccomp_rule_add_array.argtypes=[c.c_void_p,c.c_uint32,c.c_int,c.c_uint,c.POINTER(Arg)]
-        clone3=sec.seccomp_syscall_resolve_name(b'clone3')
-        if clone3>=0 and sec.seccomp_rule_add(ctx,0x00050000|errno.ENOSYS,clone3,0)!=0:raise RuntimeError('seccomp clone3 fallback failed')
+        # Landlock before ABI3 does not mediate truncate. Block metadata mutation
+        # and read-only O_TRUNC opens in all versions; writable opens remain path-confined.
+        for name,arg in (('open',1),('openat',2)):
+            nr=sec.seccomp_syscall_resolve_name(name.encode());cmp=Arg(arg,7,os.O_TRUNC|os.O_ACCMODE,os.O_TRUNC)
+            if nr>=0 and sec.seccomp_rule_add_array(ctx,denied,nr,1,c.byref(cmp))!=0:raise RuntimeError('seccomp read-only truncate guard failed')
+        for name in ('clone3','openat2'):
+            nr=sec.seccomp_syscall_resolve_name(name.encode())
+            if nr>=0 and sec.seccomp_rule_add(ctx,0x00050000|errno.ENOSYS,nr,0)!=0:raise RuntimeError('seccomp safe legacy fallback failed: '+name)
+        ioctl=sec.seccomp_syscall_resolve_name(b'ioctl')
+        for fs_type in (0x6600,0x5800):
+            cmp=Arg(1,7,0xff00,fs_type)
+            if sec.seccomp_rule_add_array(ctx,denied,ioctl,1,c.byref(cmp))!=0:raise RuntimeError('seccomp filesystem ioctl guard failed')
         # Only CLONE_THREAD clones may be created; no child process or namespaces.
         clone=sec.seccomp_syscall_resolve_name(b'clone')
         cmp=Arg(0,7,0x10000,0)
