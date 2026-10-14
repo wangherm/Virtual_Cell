@@ -51,6 +51,18 @@ bash scripts/run_round20_autodl.sh --name round20_signal_01 --parallel-jobs 3
 .venv/bin/python scripts/round20_status.py --name round20_signal_01
 ```
 
+[Round21 signature transfer](docs/ROUND21_SIGNATURE_TRANSFER.md) replaces pooled
+signal screening with source-only target-level repeat/mismatch diagnostics. It
+audits raw library sizes and matched NT memberships, separately measures supported
+Rep1-to-Rep2 prediction and whole-cell-line transfer, and compares references on
+common support. Reliable source evidence gates isolated autonomous head-code search;
+large frozen language backbones are not repeatedly retrained.
+
+```bash
+bash scripts/run_round21_autodl.sh --name round21_signal_01 --parallel-jobs 3
+.venv/bin/python scripts/round21_status.py --name round21_signal_01
+```
+
 ```bash
 bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
 ```
