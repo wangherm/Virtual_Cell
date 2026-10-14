@@ -217,6 +217,13 @@ def test_gate_requires_two_source_contexts_and_verified_raw_controls():
 
 def test_raw_audit_interface_counts_alignment_and_secret_stripping(tmp_path,monkeypatch):
     import hashlib
+    # No RDS is deserialized in this mocked interface test. Emulate the server's
+    # memory reserve instead of depending on the smaller hosted CI machine.
+    original_read=Path.read_text
+    def read_with_server_memory(path,*args,**kwargs):
+        if path==Path('/proc/meminfo'):return 'MemAvailable: 120000000 kB\n'
+        return original_read(path,*args,**kwargs)
+    monkeypatch.setattr(Path,'read_text',read_with_server_memory)
     raw=tmp_path/'raw';raw.mkdir();rds=raw/'Seurat_object_IFNG_Perturb_seq.rds';rds.write_bytes(b'SOFTWARE_FIXTURE_NOT_AN_RDS');sha=hashlib.sha256(rds.read_bytes()).hexdigest()
     write_json(raw/'INSPECT_STATUS.json',{'sha256':sha});rscript=tmp_path/'Rscript';rscript.write_text('MOCK_EXECUTABLE')
     adapter=tmp_path/'adapter';(adapter/'mapping').mkdir(parents=True);(adapter/'prepared').mkdir();(adapter/'aggregation').mkdir()
