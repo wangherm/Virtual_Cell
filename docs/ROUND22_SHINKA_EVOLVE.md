@@ -59,6 +59,32 @@ allowed across tasks, including failed/truncated calls. Provider reasoning token
 are included in completion usage. Input usage is recorded; request bodies have a
 2 MB size ceiling. Unknown provider prices remain `null`, never claimed free.
 
+The default provider policy is `--reasoning-effort low --api-max-tokens 32768
+--api-failure-limit 2`. The per-call output ceiling includes reasoning and final
+code together. The original high-effort 8,192-token policy repeatedly truncated
+before any final code on AutoDL; it must not be retried unchanged. The total
+196,608-token and 24-request ceilings are unchanged. A request reserves its full
+ceiling before forwarding, so the remaining total budget may stop another call
+even when a few tokens remain. Two consecutive failed provider responses open a
+persistent circuit: SDK/framework retries receive a local error without another
+paid request. Success resets the consecutive-failure count. No automatic switch
+of model, effort or budgets occurs mid-experiment.
+
+Before research generation, the live provider smoke now requires a tiny final
+Python function, parsed without executing it. A successful greeting alone does not
+verify code output. This probe still cannot guarantee a full research mutation.
+`round22_status.py` shows finish reasons, reasoning-token usage and final-answer
+character counts. Framework `$0.0000` is an unknown local-model pricing placeholder,
+not a measured zero-cost provider bill; use the relay's actual token usage.
+
+For the truncated `round22_evolve_02` run, update and start `round22_evolve_03`:
+
+```bash
+bash scripts/run_round22_autodl.sh --name round22_evolve_03 --mode smoke --resume
+# After numeric smoke succeeds, with DEEPSEEK_API_KEY exported:
+screen -dmS vcell22fix bash scripts/run_round22_autodl.sh --name round22_evolve_03 --resume
+```
+
 One GPU evaluation at a time; at most four worker-affinity CPUs, two numerical
 threads, 120 seconds per worker and a monitored 12 GiB host RSS ceiling. The shared
 worker wall-time budget is two hours, including controls and confirmations. It is
@@ -203,3 +229,5 @@ the server run produces that trace and may legitimately report no predictive gai
 
 Official interfaces: https://github.com/SakanaAI/ShinkaEvolve and
 https://sakanaai.github.io/ShinkaEvolve/support_local_models/ .
+Provider thinking/output semantics: https://api-docs.deepseek.com/guides/thinking_mode/
+and https://api-docs.deepseek.com/api/create-chat-completion/ .

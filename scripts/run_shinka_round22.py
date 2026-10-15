@@ -1,9 +1,21 @@
 """Runs in the pinned Shinka venv, using its real evolutionary runner."""
 import argparse
+import ast
 from importlib.metadata import version
 from pathlib import Path
 import os
 import yaml
+
+
+def check_code_probe(content):
+    """Inspect a tiny structured final answer without executing provider code."""
+    import re
+    blocks=re.findall(r'```(?:python)?\s*\n(.*?)```',content,re.S)
+    code=blocks[0] if len(blocks)==1 else content
+    tree=ast.parse(code.strip())
+    if len(tree.body)!=1:raise ValueError('Expected one probe function')
+    fn=tree.body[0]
+    if not isinstance(fn,ast.FunctionDef) or fn.name!='round22_probe' or len(fn.body)!=1 or not isinstance(fn.body[0],ast.Return) or not isinstance(fn.body[0].value,ast.Constant) or type(fn.body[0].value.value) is not int or fn.body[0].value.value!=22:raise ValueError('Invalid code-output probe')
 
 
 def main():
@@ -13,19 +25,23 @@ def main():
     from shinka.database import DatabaseConfig
     from shinka.launch import LocalJobConfig
     repo=Path(a.repo);root=Path(a.root);cfg=yaml.safe_load((repo/'experiments/round22_evolve/shinka.yaml').read_text())
+    import json
+    policy=json.loads((root/'run_plan.json').read_text())['provider_policy']
+    cfg['evo']['llm_kwargs']['max_tokens']=policy['max_tokens']
     os.environ['ROUND22_ROOT']=str(root);os.environ['ROUND22_TASK']=a.task
     model=f'local/{a.model}@http://127.0.0.1:{a.port}/v1?api_key_env=ROUND22_GATEWAY_KEY'
-    import json
     from importlib.metadata import distributions
     versions={d.metadata['Name']:d.version for d in distributions()}
     (root/'shinka_versions.json').write_text(json.dumps(versions,sort_keys=True,indent=2))
     if a.provider_smoke:
         import asyncio
         from shinka.llm import AsyncLLMClient
-        result=asyncio.run(AsyncLLMClient(model_names=[model],max_tokens=4096,verbose=False).query(
-            msg='Return exactly ROUND22_READY.',system_msg='This is a provider compatibility smoke test; no research data.'))
-        if result is None or result.content.strip()!='ROUND22_READY':raise RuntimeError('Shinka/DeepSeek smoke response invalid')
-        (root/'provider_verified.json').write_text(json.dumps({'framework':'0.0.7','model':a.model,'compatible':True,'research_data_sent':False}))
+        result=asyncio.run(AsyncLLMClient(model_names=[model],max_tokens=policy['max_tokens'],verbose=False).query(
+            msg='Return only one fenced Python function named round22_probe, taking no arguments and returning the integer 22. Use two lines of code, no explanation.',
+            system_msg='This is a structured code-output compatibility test; no research data. Keep the solution minimal.'))
+        if result is None:raise RuntimeError('Shinka/DeepSeek code-output smoke response missing')
+        check_code_probe(result.content)
+        (root/'provider_verified.json').write_text(json.dumps({'framework':'0.0.7','model':a.model,'compatible':True,'research_data_sent':False,'scope':'Tiny final Python code parsed, not executed; real research mutation still required','provider_policy':policy}))
         return
     evo=EvolutionConfig(**cfg['evo'],num_generations=a.generations,llm_models=[model],
         init_program_path=str(repo/'experiments/round22_evolve/initial.py'),results_dir=str(root/'evolution'/a.task),

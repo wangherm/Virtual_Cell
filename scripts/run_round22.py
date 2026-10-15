@@ -119,6 +119,7 @@ def launch(a):
     freeze(root/'run_plan.json',{'repo':str(REPO),'python':sys.executable,'code_sha256':code_hash,'parent':str(parent),
         'parent_sha256':file_sha256(parent/'COMPLETE.json'),'budget':budget,'generations_per_task':a.generations,'tasks':a.tasks,'outer_context':a.outer_context,
         'seed':a.seed,'api_requests_max':a.api_requests,'api_output_tokens_max':a.api_output_tokens,'model':a.model,'port':a.port,
+        'provider_policy':{'max_tokens':a.api_max_tokens,'reasoning_effort':a.reasoning_effort,'failure_limit':a.api_failure_limit},
         'shinka_python':str(a.shinka_python or work/'envs/shinka/bin/python'),'shinka_version':'0.0.7',
         'training_versions':{name:version(name) for name in ('torch','numpy','pandas','scipy')},'test_evaluated':False})
     if (root/'COMPLETE.json').exists():verify(root);print('ROUND22 COMPLETE VERIFIED',root);return root
@@ -146,7 +147,8 @@ def launch(a):
             if not key:raise RuntimeError('Set DEEPSEEK_API_KEY in trusted orchestrator environment')
             token=secrets.token_hex(24);shinka=read(root/'run_plan.json')['shinka_python']
             if not Path(shinka).is_file():raise ValueError('Install isolated Shinka venv with scripts/install_round22_autodl.sh')
-            with Gateway(root/'api_ledger.json',key,a.model,token,a.api_requests,a.api_output_tokens,a.port):
+            with Gateway(root/'api_ledger.json',key,a.model,token,a.api_requests,a.api_output_tokens,a.port,
+                    max_tokens=a.api_max_tokens,reasoning_effort=a.reasoning_effort,failure_limit=a.api_failure_limit):
                 for task in a.tasks:
                     stage(root,'ShinkaEvolve method search',task=task,generations=a.generations)
                     env=worker_env();env.update(ROUND22_GATEWAY_KEY=token,ROUND22_ROOT=str(root),ROUND22_TASK=task,SHINKA_PRICING_MODE='offline')
@@ -227,8 +229,10 @@ def main(argv=None):
     p.add_argument('--tasks',nargs='+',choices=['repeat','transfer'],default=['repeat','transfer']);p.add_argument('--generations',type=int,default=6)
     p.add_argument('--steps',type=int,default=500);p.add_argument('--worker-seconds',type=int,default=120);p.add_argument('--evaluation-hours',type=float,default=2.)
     p.add_argument('--device',choices=['cpu','cuda'],default='cuda');p.add_argument('--api-requests',type=int,default=24);p.add_argument('--api-output-tokens',type=int,default=196608)
+    p.add_argument('--api-max-tokens',type=int,default=32768);p.add_argument('--reasoning-effort',choices=['low','high','max'],default='low');p.add_argument('--api-failure-limit',type=int,default=2)
     p.add_argument('--model',default='deepseek-v4-pro');p.add_argument('--port',type=int,default=18022);p.add_argument('--shinka-python');p.add_argument('--mode',choices=['prepare','smoke','run'],default='run');p.add_argument('--resume',action='store_true');a=p.parse_args(argv)
     if not 2<=a.generations<=12 or min(a.steps,a.worker_seconds,a.evaluation_hours,a.api_requests,a.api_output_tokens)<1 or len(set(a.tasks))!=len(a.tasks):raise ValueError('Positive bounded budgets, 2..12 generations, distinct tasks required')
+    if not 1<=a.api_max_tokens<=65536 or a.api_failure_limit<1 or a.api_output_tokens<a.api_max_tokens:raise ValueError('Invalid provider policy or total token budget smaller than one full request')
     with run_lock(Path(a.work_dir)/'runs'/('.'+a.name+'.lock')):return launch(a)
 
 

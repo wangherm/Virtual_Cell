@@ -124,6 +124,61 @@ def test_gateway_caps_records_real_usage_and_charges_failures(tmp_path,monkeypat
     finally:g.server.server_close()
 
 
+def test_gateway_truncation_breaker_persists_and_bounds_paid_retries(tmp_path,monkeypatch):
+    class Response:
+        ok=True;status_code=200
+        def json(self):return {'choices':[{'finish_reason':'length','message':{'content':'','reasoning_content':'not logged'}}],
+            'usage':{'completion_tokens':32768,'completion_tokens_details':{'reasoning_tokens':32768}}}
+    seen=[]
+    monkeypatch.setattr('vcell.round22.gateway.requests.post',lambda *a,**k:(seen.append(k['json']) or Response()))
+    path=tmp_path/'api.json';body={'model':'m','messages':[],'max_tokens':99999,'temperature':.5,'top_p':.8}
+    g=Gateway(path,'secret','m','relay',port=0)
+    try:
+        assert g.forward(body)[1]['error']['type']=='incomplete_response'
+        assert g.forward(body)[1]['error']['type']=='incomplete_response'
+        assert g.forward(body)[1]['error']['type']=='provider_circuit_open'
+        assert len(seen)==2 and sum(r['charged_output_tokens'] for r in g.records)==65536
+        assert all(r['max_tokens']==32768 and r['reasoning_effort']=='low' for r in seen)
+        assert all('temperature' not in r and 'top_p' not in r for r in seen)
+        assert body['max_tokens']==99999  # Caller request must not be mutated.
+        assert 'not logged' not in path.read_text() and 'secret' not in path.read_text()
+    finally:g.server.server_close()
+    resumed=Gateway(path,'secret','m','relay',port=0)
+    try:
+        assert resumed.forward(body)[1]['error']['type']=='provider_circuit_open'
+        assert len(seen)==2
+    finally:resumed.server.server_close()
+
+
+def test_gateway_success_resets_breaker_and_total_token_cap_is_unchanged(tmp_path,monkeypatch):
+    outcomes=iter(['length','stop','length','stop'])
+    class Response:
+        ok=True;status_code=200
+        def json(self):
+            finish=next(outcomes)
+            return {'choices':[{'finish_reason':finish,'message':{'content':'code' if finish=='stop' else ''}}],'usage':{'completion_tokens':32768}}
+    seen=[]
+    monkeypatch.setattr('vcell.round22.gateway.requests.post',lambda *a,**k:(seen.append(1) or Response()))
+    g=Gateway(tmp_path/'api.json','secret','m','relay',output_tokens_max=3*32768,port=0)
+    try:
+        body={'model':'m','messages':[],'max_tokens':32768}
+        assert g.forward(body)[0]==400
+        assert g.forward(body)[0]==200
+        assert g.forward(body)[0]==400
+        assert g.forward(body)[1]['error']['type']=='budget_exhausted'
+        assert len(seen)==3
+    finally:g.server.server_close()
+
+
+def test_provider_smoke_requires_final_code_without_executing_it():
+    spec=importlib.util.spec_from_file_location('shinka_round22',REPO/'scripts/run_shinka_round22.py')
+    m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+    m.check_code_probe('```python\ndef round22_probe():\n    return 22\n```')
+    for content in ('ROUND22_READY','', 'def round22_probe():\n    return 21',
+            'import os\ndef round22_probe():\n    return 22', 'def round22_probe():\n    raise RuntimeError()'):
+        with pytest.raises((ValueError,SyntaxError)):m.check_code_probe(content)
+
+
 def test_light_archive_excludes_hidden_labels_and_matrices(tmp_path):
     for name in ('private/a/grade.npz','inputs/a/input.npz','workers/a/model.pt','private/a/metadata.csv'):
         p=tmp_path/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'private')
@@ -201,6 +256,7 @@ def test_frozen_resume_cannot_reopen_api_or_search(tmp_path,monkeypatch):
         return result
     monkeypatch.setattr(m,'evaluate',evaluate_fixture)
     a=Namespace(work_dir=str(tmp_path),name='pilot',round21_run=str(parent),resume=False,steps=1,worker_seconds=25,seed=17,device='cpu',evaluation_hours=1.,
+        api_max_tokens=32768,reasoning_effort='low',api_failure_limit=2,
         generations=2,tasks=['repeat'],outer_context='HAP1_IFNG',api_requests=3,api_output_tokens=20000,model='m',port=18022,shinka_python=sys.executable,mode='smoke')
     m.launch(a)
     source=json.loads((root/'fixed/repeat/second/metrics.json').read_text())

@@ -14,6 +14,9 @@ for task in ('repeat','transfer'):
 ledger=root/'api_ledger.json'
 if ledger.exists():
     d=json.loads(ledger.read_text());print('API:',len(d),'requests;',dict(Counter(r['status'] for r in d)), 'output tokens charged:',sum(r.get('charged_output_tokens',0) for r in d))
+    print('API outcomes:',dict(Counter(str((r.get('http_status'),r.get('finish_reason'),r.get('failure_category'))) for r in d)))
+    if d:
+        r=d[-1];print('Last provider call:',{k:r.get(k) for k in ('attempt','status','max_tokens','reasoning_effort','finish_reason','final_characters','usage')})
 budget=root/'evaluation_budget.json'
 if budget.exists():
     d=json.loads(budget.read_text());print('Evaluation seconds:',sum(v['charged_seconds'] for v in d['workers'].values()),'/',d['cap_seconds'],'worker attempts:',len(d['workers']))
