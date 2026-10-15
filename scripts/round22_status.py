@@ -5,11 +5,15 @@ from pathlib import Path
 from collections import Counter
 p=argparse.ArgumentParser();p.add_argument('--work-dir',default='/root/autodl-tmp/vcell-work');p.add_argument('--name',default='round22_evolve_01');a=p.parse_args()
 root=Path(a.work_dir)/'runs'/a.name
+evolution_root=root
+if (root/'recovery_plan.json').exists():
+    evolution_root=Path(json.loads((root/'recovery_plan.json').read_text())['source_run'])
+    print('Outer-only recovery; search counts and API usage inherited from:',evolution_root)
 for name in ('stage.json','sandbox_verified.json','worker_progress.json','INCOMPLETE.json'):
     path=root/name
     if path.exists():print(name+(' (last failure; may remain during resume)' if name=='INCOMPLETE.json' else ''),json.dumps(json.loads(path.read_text()),indent=2))
 for task in ('repeat','transfer'):
-    records=[json.loads(p.read_text()) for p in (root/'evolution'/task).glob('gen_*/results/correct.json')]
+    records=[json.loads(p.read_text()) for p in (evolution_root/'evolution'/task).glob('gen_*/results/correct.json')]
     print(task,'Shinka evaluated:',dict(Counter('valid' if r.get('correct') else 'failed' for r in records)))
 ledger=root/'api_ledger.json'
 if ledger.exists():

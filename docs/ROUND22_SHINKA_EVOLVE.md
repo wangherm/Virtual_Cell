@@ -105,6 +105,38 @@ requires a new name; it has weaker legal source reference coverage.
 
 ## Scientific tasks and partition boundary
 
+### Recovery of the empty outer fold in release 39019e5
+
+The final-fit `partition.outer` field inherited from Round21 is a source diagnostic
+partition, not the whole held-out cell line. The frozen held-line IDs are in that
+fold's `query_rows`. Updated preparation validates these IDs and creates the outer
+fold before allowing paid search. The original unit test incorrectly equated the
+two fields; the regression fixture now mirrors the real parent schema.
+
+If `round22_evolve_03` stopped with `No legal folds for transfer/outer` after both
+freezes, retain the source run and finish in a separate recovery artifact:
+
+```bash
+cd /root/autodl-tmp/virtual_cell
+.venv/bin/python -u scripts/recover_round22_outer.py \
+  --source-name round22_evolve_03 --name round22_evolve_03_outerfix
+.venv/bin/python scripts/round22_status.py --name round22_evolve_03_outerfix
+```
+
+No API key is needed. Recovery is restricted to the affected published namespace
+and exact empty-outer failure. It verifies the original parent, candidate code,
+search/confirmation metrics, winners and all public/private source fold hashes.
+Rebuilding must reproduce every search and confirmation input, label, transform
+and row ID exactly. It then grades only already-frozen transfer finalists on the
+correct inherited held-line queries. It neither retrains source candidates nor
+reopens search. The original run stays untouched; its elapsed evaluation charges
+carry forward into the same total cap. Recovery has its own frozen code identity
+and completion marker, and supports rerunning the same command after interruption.
+Its review archive contains inherited source metrics, candidate code and API usage
+alongside new outer scores; it is not a new independent research experiment.
+
+Output: `/root/autodl-tmp/vcell-work/runs/round22_evolve_03_outerfix/round22_review_light.tar.gz`.
+
 **Repeat:** permitted query Rep1 response predicts sealed Rep2. Whole target hashes
 split other source targets into search and source confirmation. Training, response
 projections and noise masks never see query Rep2. This is supported prediction of

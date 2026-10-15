@@ -21,7 +21,7 @@ START='# EVOLVE-BLOCK-START';END='# EVOLVE-BLOCK-END'
 
 
 def namespace(repo):
-    repo=Path(repo);paths=[repo/'scripts/run_round22.py',repo/'scripts/run_shinka_round22.py',*sorted((repo/'src/vcell/round22').glob('*.py')),*sorted((repo/'experiments/round22_evolve').glob('*'))]
+    repo=Path(repo);paths=[repo/'scripts/run_round22.py',repo/'scripts/run_shinka_round22.py',repo/'scripts/recover_round22_outer.py',*sorted((repo/'src/vcell/round22').glob('*.py')),*sorted((repo/'experiments/round22_evolve').glob('*'))]
     return digest({p.relative_to(repo).as_posix():file_sha256(p) for p in paths if p.is_file()})
 
 

@@ -17,6 +17,20 @@ def projection(train,query,rank=16):
     return ((train-mean)/sd)@v.T,((query-mean)/sd)@v.T
 
 
+def outer_queries(fold,meta,outer_context,allowed):
+    # In inherited final fits, partition.outer is a SOURCE diagnostic set.
+    # Only query_rows identifies the frozen, completely held-out cell line.
+    if 'query_rows' not in fold:raise ValueError('Missing inherited frozen outer query_rows')
+    query=np.asarray(fold['query_rows'],dtype=int)
+    if query.ndim!=1 or not len(query) or len(set(query.tolist()))!=len(query) or (query<0).any() or (query>=len(meta)).any():raise ValueError('Invalid inherited outer query_rows')
+    rows=meta.iloc[query]
+    if not rows.context.eq(outer_context).all() or any(protected(str(s)) for s in lines(rows)):raise ValueError('Outer query cell-line mismatch or reserved line')
+    query=query[rows.stimulus.eq('IFNG').to_numpy()]
+    if not len(query):raise ValueError('No inherited IFNG outer queries; stop before paid search')
+    if set(query)&set(map(int,allowed)):raise ValueError('Outer query overlaps source training rows')
+    return query
+
+
 def pack(root,name,task,train,query,y,truth,tx,qx,targets,qtargets,ids,contexts,genes,support,qsupport,wrong,wrong_x,mask,available,common,unknown,extra=None,wrong_targets=None,shuffled=None,shuffled_x=None,shuffled_targets=None):
     dest=root/'inputs'/name;dest.mkdir(parents=True,exist_ok=True)
     background=np.tile(y.mean(0),(len(query),1)).astype(np.float32)
@@ -62,6 +76,7 @@ def prepare(parent_run,root,outer_context,seed=17):
     allowed=allowed[meta.iloc[allowed].stimulus.eq('IFNG').to_numpy()]
     if any(protected(str(s)) for s in ll[allowed]) or outer_context in set(meta.iloc[allowed].context):raise ValueError('Outer/reserved source leak')
     held=set(lin['held_targets']);allowed=allowed[~meta.iloc[allowed].perturbation.isin(held).to_numpy()]
+    query_outer=outer_queries(old['folds'][0],meta,outer_context,allowed)
     # Freeze the same three inner query cell lines as the original experiment.
     source_contexts=sorted(f['held'] for f in old['folds'][1:])
     source_contexts=[c for c in source_contexts if c.endswith('_IFNG') and not protected(c)]
@@ -156,8 +171,8 @@ def prepare(parent_run,root,outer_context,seed=17):
             if stage=='confirmation':train=allowed[meta.iloc[allowed].context.ne(context).to_numpy()]
             transfer_fold(stage,context,train,query)
         if len(folds['transfer'][stage])!=3:raise ValueError('Every inherited source context needs '+stage+' queries')
-    query=np.asarray(part['outer'],int);query=query[meta.iloc[query].stimulus.eq('IFNG').to_numpy()]
-    transfer_fold('outer',outer_context,allowed,query)
+    transfer_fold('outer',outer_context,allowed,query_outer)
+    if len(folds['transfer']['outer'])!=1:raise ValueError('Exactly one frozen whole-line outer fold required before search')
     plan={'folds':folds,'outer_context':outer_context,'seed':seed,'gene_order':list(map(str,genes)),
         'confirmation_targets':sorted(confirmation),'global_held_targets':sorted(held),'source_contexts':source_contexts,
         'source_rows':allowed.tolist(),'parent_sha256':file_sha256(parent/'COMPLETE.json'),'raw_controls_verified':read(parent/'summary.json')['raw_audit'].get('independent_repeat_controls_verified',False),

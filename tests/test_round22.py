@@ -209,14 +209,18 @@ def test_fresh_source_partitions_exclude_confirmation_and_outer_truth(tmp_path,m
     parent=tmp_path/'parent';parent.mkdir();prepared=tmp_path/'prepared';prepared.mkdir();(prepared/'dataset.npz').write_bytes(b'fixture')
     relations=tmp_path/'relations.npz';np.savez_compressed(relations,genes=genes,perturbations=np.array(targets,dtype='U'),relations=np.stack([np.tile(np.linspace(0,i+1,1834),(3,1)) for i in range(30)]))
     source=np.flatnonzero(meta.context.ne('HAP1_IFNG') & meta.perturbation.ne('T00'));outer=np.flatnonzero(meta.context.eq('HAP1_IFNG'))
-    cfg={'partition':{'fit':source.tolist(),'calibration':[],'outer':outer.tolist()},'relations':str(relations)}
-    fold={'name':'outer','held':'HAP1_IFNG','configs':{'expanded':cfg}}
+    # Real final-fit schema: partition.outer is NOT the held-line query set.
+    cfg={'partition':{'fit':source.tolist(),'calibration':[],'outer':[]},'relations':str(relations)}
+    fold={'name':'outer','held':'HAP1_IFNG','query_rows':outer.tolist(),'configs':{'expanded':cfg}}
     inner=[{'held':c} for c in ('A549_IFNG','BXPC3_IFNG','MCF7_IFNG')]
     write_json(parent/'lineage.json',{'data_dir':str(prepared),'held_targets':['T00'],'folds':[{'outer_context':'HAP1_IFNG','folds':[fold,*inner]}]})
     write_json(parent/'summary.json',{'raw_audit':{'independent_repeat_controls_verified':True}});seal(parent)
     monkeypatch.setattr(data,'load_prepared',lambda path:fake)
     first=tmp_path/'first';first.mkdir();p=data.prepare(parent,first,'HAP1_IFNG')
     assert len(p['folds']['transfer']['search'])==3
+    assert len(p['folds']['transfer']['outer'])==1
+    assert p['folds']['transfer']['outer'][0]['sealed_query_rows']==outer.tolist()
+    assert set(p['folds']['transfer']['outer'][0]['source_train_rows']).isdisjoint(outer)
     confirmation=set(p['confirmation_targets'])
     for task in ('repeat','transfer'):
         for f in p['folds'][task]['search']:
@@ -235,6 +239,15 @@ def test_fresh_source_partitions_exclude_confirmation_and_outer_truth(tmp_path,m
         for f,g in zip(p['folds'][task]['search'],p2['folds'][task]['search']):
             assert f['input_sha256']==g['input_sha256']
             assert f['grade_sha256']==g['grade_sha256']
+
+
+def test_outer_queries_uses_explicit_queries_and_fails_before_search():
+    meta=pd.DataFrame({'context':['A549_IFNG','HAP1_IFNG','HT29_IFNG'], 'stimulus':['IFNG']*3})
+    assert data.outer_queries({'query_rows':[1],'configs':{'expanded':{'partition':{'outer':[0]}}}},meta,'HAP1_IFNG',[0]).tolist()==[1]
+    for fold in ({},{'query_rows':[]},{'query_rows':[0]},{'query_rows':[1,1]},{'query_rows':[99]}):
+        with pytest.raises(ValueError):data.outer_queries(fold,meta,'HAP1_IFNG',[0])
+    with pytest.raises(ValueError,match='reserved'):data.outer_queries({'query_rows':[2]},meta,'HT29_IFNG',[0])
+    with pytest.raises(ValueError,match='overlaps'):data.outer_queries({'query_rows':[1]},meta,'HAP1_IFNG',[0,1])
 
 
 def test_frozen_resume_cannot_reopen_api_or_search(tmp_path,monkeypatch):
@@ -269,3 +282,60 @@ def test_frozen_resume_cannot_reopen_api_or_search(tmp_path,monkeypatch):
     assert json.loads((root/'confirmation_frozen.json').read_text())['outer_used'] is False
     # Already complete resume also verifies the complete artifact without source fitting.
     m.launch(a)
+
+
+def test_outer_only_recovery_preserves_original_and_never_reopens_search(tmp_path,monkeypatch):
+    import copy
+    monkeypatch.syspath_prepend(str(REPO/'scripts'))
+    spec=importlib.util.spec_from_file_location('round22_recovery',REPO/'scripts/recover_round22_outer.py')
+    r=importlib.util.module_from_spec(spec);spec.loader.exec_module(r)
+    source=tmp_path/'original';source.mkdir();fold=packed(source)
+    parent=tmp_path/'parent';parent.mkdir();(parent/'proof.txt').write_text('fixture');seal(parent)
+    plan=read_json(source/'run_plan.json')
+    plan.update(code_sha256=r.APPROVED_PRE_REPAIR_NAMESPACE,parent=str(parent),parent_sha256=file_sha256(parent/'COMPLETE.json'),
+        training_versions={},outer_context='HAP1_IFNG',seed=17,tasks=['repeat','transfer'],
+        budget={'root':str(source),'seed':17,'device':'cpu','steps':1,'seconds':25,'ram_bytes':4*1024**3,'evaluation_seconds_max':100})
+    write_json(source/'run_plan.json',plan)
+    old={'folds':{t:{'search':[fold],'confirmation':[fold],'outer':[]} for t in ('repeat','transfer')},
+        'outer_context':'HAP1_IFNG','seed':17,'gene_order':['fixture'],'confirmation_targets':['Q'],
+        'global_held_targets':[],'source_contexts':['C'],'source_rows':[0,1,2],'parent_sha256':plan['parent_sha256'],
+        'raw_controls_verified':True,'data_sha256':'fixture','relations_sha256':'fixture'}
+    write_json(source/'data_plan.json',old)
+    fake_metrics={'combined_score':0.,'public':{'mse':1.,'signal_screen_passed':False}}
+    records=[]
+    for task in plan['tasks']:
+        search=source/'search'/task;confirmation=source/'confirmation'/task
+        write_json(search/'metrics.json',fake_metrics);write_json(confirmation/'metrics.json',fake_metrics)
+        records.append({'task':task,'arm':'fixed','code':str(REPO/'experiments/round22_evolve/initial.py'),
+            'sha256':file_sha256(REPO/'experiments/round22_evolve/initial.py'),'metrics':fake_metrics,'search_dir':str(search),
+            'confirmation_metrics':fake_metrics,'confirmation_dir':str(confirmation)})
+    baseline={t:'zero' for t in plan['tasks']};write_json(source/'baseline_selection.json',baseline)
+    write_json(source/'search_frozen.json',{'candidates':records,'all_records':records,'baseline_selection':baseline,'confirmation_used':False,'outer_used':False})
+    write_json(source/'confirmation_frozen.json',{'records':records,'winners':{t:None for t in plan['tasks']},'outer_used':False})
+    write_json(source/'evaluation_budget.json',{'workers':{'historical':{'status':'complete','charged_seconds':12.}},'cap_seconds':100})
+    write_json(source/'INCOMPLETE.json',{'error':'No legal folds for transfer/outer'})
+    before={str(p):file_sha256(p) for p in source.rglob('*') if p.is_file()}
+    def repaired(*args):
+        new=copy.deepcopy(old);new['folds']['transfer']['outer']=[fold];write_json(args[1]/'data_plan.json',new);return new
+    monkeypatch.setattr(r,'prepare',repaired);monkeypatch.setattr(r,'preflight',lambda *args:None)
+    monkeypatch.delenv('DEEPSEEK_API_KEY',raising=False)
+    calls=[]
+    def outer_only(code,root,task,phase,output):
+        assert (task,phase)==('transfer','outer');calls.append(1)
+        return evaluator.evaluate(code,root,task,phase,output,execute_fn=lambda code,d,*args:d['query_support'])
+    monkeypatch.setattr(r,'evaluate',outer_only)
+    dest=tmp_path/'recovered';r.recover(source,dest)
+    assert calls==[1] and (dest/'COMPLETE.json').exists()
+    assert read_json(dest/'summary.json')['API_calls_added']==0
+    assert read_json(dest/'evaluation_budget.json')['workers']['historical']['charged_seconds']==12.
+    assert before=={str(p):file_sha256(p) for p in source.rglob('*') if p.is_file()}
+    r.recover(source,dest);assert calls==[1]  # Completed recovery is immutable and reused.
+    changed=copy.deepcopy(old);changed['folds']['repeat']['search'][0]['input_sha256']='changed'
+    with pytest.raises(ValueError,match='Source fold changed'):r.verify_source_rebuild(old,changed)
+    bad=copy.deepcopy(fake_metrics);bad['combined_score']=9.
+    write_json(source/'confirmation/transfer/metrics.json',bad)
+    with pytest.raises(ValueError,match='confirmation metrics changed'):r.validate_source(source)
+
+
+def read_json(path):
+    return json.loads(Path(path).read_text())
