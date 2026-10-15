@@ -357,6 +357,7 @@ source code. The default pipeline uses one device, not distributed training.
 
 ## Documentation
 
+- [Round 23: persistent agent evolution, data broker, source repair memory and bounded 100-candidate campaigns](docs/ROUND23_EVOLUTION_FRAMEWORK.md)
 - [Round 22: ShinkaEvolve autonomous method discovery, isolated candidates and source confirmation](docs/ROUND22_SHINKA_EVOLVE.md)
 
 - [Round 11: source-context calibration, H1 few-shot diagnostic and frozen Jurkat release](docs/ROUND11.md)

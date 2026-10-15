@@ -125,3 +125,20 @@ retained in the snapshot. These are gene naming annotations, not expression
 data or learned prediction weights. Attribute the HUGO Gene Nomenclature
 Committee when using them; their upstream terms are not replaced by the
 repository's MIT code license. The server reads the bundled snapshot offline.
+
+# Round 23 identifiers and public data registry
+
+`configs/round23_hgnc_identity.json.gz` is an annotation-only index of unique
+Approved HGNC symbols, Ensembl identifiers and previous approved names from the
+same official 2026-10-05 complete set. It excludes informal aliases and ambiguous
+ownership. The compressed payload records its upstream URL and SHA-256;
+`scripts/build_round23_identity.py` rebuilds the index from the original TSV.
+Attribute the HUGO Gene Nomenclature Committee; upstream annotation terms remain
+applicable and are not replaced by this repository's MIT code license.
+
+The public data registry points to scPerturb v1.4 RNA files at
+https://zenodo.org/records/13350497 and the original Papalexi (GSE153056), Adamson
+(GSE90546), and Shifrut (GSE119450) studies. Data files are downloaded to the user's
+data disk, not distributed in the code repository. Cite scPerturb and the original
+studies and retain their data terms. Registry roles distinguish training sources
+from a sealed external cohort; listing a study is not a claim of training readiness.
