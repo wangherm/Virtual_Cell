@@ -264,3 +264,60 @@ def test_hgnc_ids_and_previous_names_share_target_exclusion():
     m=pd.DataFrame({'context':['X','X'],'perturbation':['SEPT7','ENSG00000122545.9'],'split':['train','train']})
     ok=catalog.legal_auxiliary(m,'HAP1_IFNG',[],[],[],['SEPTIN7'],'transfer','search',target_aliases())
     assert not ok.any()
+
+
+def test_curated_thp1_preserves_guides_and_hto_matched_controls(tmp_path):
+    import anndata as ad
+    from vcell.evolution.profiles import curated_config
+    entry=json.loads((REPO/'configs/round23_public_sources.json').read_text())['sources'][0]
+    groups=[('A','control','NTg1',[9,1]),('A','ATF2g1','ATF2g1',[1,9]),('A','ATF2g2','ATF2g2',[2,8]),
+            ('B','control','NTg2',[5,5]),('B','ATF2g1','ATF2g1',[7,3]),('B','ATF2g2','ATF2g2',[8,2])]
+    obs=pd.DataFrame([{'hto':h,'perturbation':t,'guide_id':g,'cell_line':'THP-1'} for h,t,g,x in groups for _ in range(20)])
+    a=ad.AnnData(np.array([x for h,t,g,x in groups for _ in range(20)],np.uint16),obs=obs,var=pd.DataFrame(index=['G1','G2']))
+    raw=tmp_path/'thp.h5ad';a.write_h5ad(raw);cfg=curated_config(entry,a.obs,tmp_path)
+    out=adapter.adapt(raw,cfg,['G1','G2'],tmp_path/'ready');d=catalog.load_source_bundle(out,np.array(['G1','G2']))
+    assert len(d['target'])==4 and set(d['target'])=={'ATF2'} and len(set(d['unit_id']))==4
+    units=pd.read_csv(tmp_path/'ready/units.csv');assert set(units.n_cells)=={20} and set(units.n_controls)=={20}
+    for i,row in units.iterrows():
+        h='A' if "'A'" in row.batch else 'B';guide='ATF2g1' if 'ATF2g1' in row.unit else 'ATF2g2'
+        response=next(x for hh,t,g,x in groups if hh==h and g==guide)
+        ctrl=next(x for hh,t,g,x in groups if hh==h and t=='control')
+        np.testing.assert_allclose(d['delta'][i],np.log1p(1000*np.array(response))-np.log1p(1000*np.array(ctrl)),atol=1e-6)
+    with pytest.raises(ValueError,match='checksum'):curated_config({**entry,'md5':'wrong'},a.obs,tmp_path)
+    a.obs.loc[a.obs.index[0],'hto']=None;a.write_h5ad(tmp_path/'missing-hto.h5ad')
+    with pytest.raises(ValueError,match='hto'):adapter.adapt(tmp_path/'missing-hto.h5ad',cfg,['G1'],tmp_path/'missing')
+
+
+def test_curated_adamson_audits_unassigned_and_combinations_without_fake_controls(tmp_path):
+    import anndata as ad
+    from vcell.evolution.profiles import curated_config
+    entry=json.loads((REPO/'configs/round23_public_sources.json').read_text())['sources'][1]
+    groups=[('3x_neg_ctrl_pMJ144-1',20,[9,1]),('3x_neg_ctrl_pMJ144-2',20,[9,1]),
+            ('ATF6_only_pMJ145',20,[1,9]),('PERK_only_pMJ146',20,[2,8]),('IRE1_only_pMJ148',20,[3,7]),
+            ('ATF6_PERK_IRE1_pMJ158',20,[999,1]),(None,2,[999,1]),('*',1,[999,1]),('PSMD12_pDS009',6,[1,9])]
+    obs=pd.DataFrame([{'perturbation':t,'cell_line':'K562'} for t,n,x in groups for _ in range(n)])
+    a=ad.AnnData(np.array([x for t,n,x in groups for _ in range(n)],np.uint16),obs=obs,var=pd.DataFrame(index=['G1','G2']))
+    raw=tmp_path/'adamson.h5ad';a.write_h5ad(raw);cfg=curated_config(entry,a.obs,tmp_path)
+    out=adapter.adapt(raw,cfg,['G1','G2'],tmp_path/'ready');d=catalog.load_source_bundle(out,np.array(['G1','G2']))
+    assert set(d['target'])=={'ATF6','EIF2AK3','ERN1'}
+    units=pd.read_csv(tmp_path/'ready/units.csv');assert set(units.n_controls)=={40}
+    audit=json.loads((tmp_path/'ready/metadata_audit.json').read_text());assert audit['input_cells']-audit['included_cells']==29
+    np.testing.assert_allclose(d['baseline'],np.tile(np.log1p([9000,1000]),(3,1)),atol=1e-6)
+    bad=a.obs.copy();bad['perturbation']=bad.perturbation.astype(object);bad.loc[bad.index[0],'perturbation']='UNKNOWN_construct'
+    changed=curated_config(entry,bad,tmp_path)
+    assert 'UNKNOWN_construct' in changed['exclude_target_labels'] and 'UNKNOWN_construct' not in changed['control_values']
+
+
+def test_known_dataset_profile_avoids_paid_metadata_guessing(tmp_path,monkeypatch):
+    import anndata as ad
+    from vcell.evolution import data_agent
+    entry=json.loads((REPO/'configs/round23_public_sources.json').read_text())['sources'][0]
+    genes=np.array([f'G{i}' for i in range(1000)])
+    obs=pd.DataFrame({'perturbation':['control']*20+['ATF2g1']*20,'guide_id':['NTg1']*20+['ATF2g1']*20,'hto':['A']*40,'cell_line':['THP-1']*40})
+    a=ad.AnnData(np.ones((40,1000),np.uint16),obs=obs,var=pd.DataFrame(index=genes));raw=tmp_path/'raw.h5ad';a.write_h5ad(raw)
+    panel=tmp_path/'panel.npz';np.savez_compressed(panel,genes=genes)
+    monkeypatch.setattr(data_agent,'fetch',lambda *args:raw)
+    dest=data_agent.prepare_sources(tmp_path,{'sources':[entry]},panel,tmp_path/'data-agent','offline',request_fn=lambda _:pytest.fail('Known profile must not consume an API call'))
+    result=json.loads(dest.read_text());assert result['data_agent_audit']['requests']==0
+    assert json.loads((dest.parent/'summary.json').read_text())['ready_source_bundles']==1
+    assert json.loads((dest.parent/'progress.json').read_text())['stage']=='complete'

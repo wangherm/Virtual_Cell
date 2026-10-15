@@ -22,9 +22,21 @@ def adapt(path,config,genes,dest):
         required=('target_column','control_values','stratum_columns','context_column','cell_line','stimulus','modality','time','dataset','target_namespace')
         if any(k not in config for k in required) or config['target_namespace']!='HGNC_symbol':raise ValueError('Explicit target/control/condition/context/HGNC mapping required')
         if config['context_column']=='__dataset_context__':a.obs['__dataset_context__']=config['cell_line']
-        columns=[config['target_column'],config['context_column'],*config['stratum_columns']]
+        unit_columns=config.get('unit_columns',[])
+        columns=list(dict.fromkeys([config['target_column'],config['context_column'],*config['stratum_columns'],*unit_columns]))
         if any(c not in a.obs for c in columns) or not config['stratum_columns']:raise ValueError('Missing explicit context or independent control stratum columns')
-        if a.obs[columns].isna().any().any():raise ValueError('Missing target/context/control stratum metadata')
+        included=np.ones(a.n_obs,bool);exclusions=[]
+        missing_target=a.obs[config['target_column']].isna().to_numpy()
+        if config.get('drop_missing_target') and missing_target.any():
+            included[missing_target]=False;exclusions.append({'reason':'missing target label','cells':int(missing_target.sum())})
+        for label,reason in config.get('exclude_target_labels',{}).items():
+            mask=a.obs[config['target_column']].eq(label).fillna(False).to_numpy(bool)
+            included[mask]=False;exclusions.append({'label':label,'reason':reason,'cells':int(mask.sum())})
+        missing=a.obs.loc[included,columns].isna().sum();missing=missing[missing.gt(0)]
+        metadata_audit={'input_cells':a.n_obs,'included_cells':int(included.sum()),'exclusions':exclusions,'missing_required_fields':missing.to_dict(),
+            'unit_columns':unit_columns,'control_match_columns':config['stratum_columns'],'control_policy':'Only actual configured non-targeting labels; no missing labels or combination constructs converted to controls'}
+        write_json(dest/'metadata_audit.json',metadata_audit)
+        if len(missing):raise ValueError('Missing target/context/control stratum metadata: '+repr(missing.to_dict()))
         labels=a.var_names.astype(str).to_numpy() if config.get('gene_column','index')=='index' else a.var[config['gene_column']].astype(str).to_numpy()
         mapping=config.get('gene_map',{});labels=np.array([mapping.get(g,g).split('.')[0] if str(mapping.get(g,g)).startswith('ENSG') else mapping.get(g,g) for g in labels])
         if len(set(labels))!=len(labels):raise ValueError('Ambiguous duplicate canonical genes; explicit aggregation policy required')
@@ -47,11 +59,12 @@ def adapt(path,config,genes,dest):
             report.update(panel_genes=len(genes),output_panel=genes.tolist(),panel_policy='Annotation-only measured intersection before any model search; NOT the legacy full-panel benchmark')
         idx=resolved.source_index.to_numpy(int) if resolved is not None else np.array([loc[g] for g in genes]);targets=a.obs[config['target_column']].astype(str).to_numpy();contexts=a.obs[config['context_column']].astype(str).to_numpy()
         controls=set(map(str,config['control_values']));target_map=config.get('target_map',{})
-        unknown=sorted({t for t in targets if t not in controls and canonical(target_map.get(t,t)) is None})
+        unknown=sorted({t for t in targets[included] if t not in controls and canonical(target_map.get(t,t)) is None})
         if unknown:raise ValueError('Unresolved/ambiguous target identity or missing control labels: '+repr(unknown[:15]))
-        target=np.array(['__control__' if t in controls else canonical(target_map.get(t,t)) for t in targets])
+        target=np.array(['__excluded__' if not included[i] else '__control__' if t in controls else canonical(target_map.get(t,t)) for i,t in enumerate(targets)])
         if any(any(x in t for x in ('+',';',',')) for t in set(target)-{'__control__'}):raise ValueError('Compound/guide labels require explicit single-target HGNC mapping')
         strata=a.obs[config['stratum_columns']].astype(str).apply(lambda row:tuple(row),axis=1).tolist()
+        units=a.obs[unit_columns].astype(str).apply(lambda row:tuple(row),axis=1).tolist() if unit_columns else [()] * a.n_obs
         matrix=a.X if config.get('layer','X')=='X' else a.layers[config['layer']]
         sums={};counts=defaultdict(int);chunk=int(config.get('chunk_size',1024))
         for start in range(0,a.n_obs,chunk):
@@ -61,23 +74,27 @@ def adapt(path,config,genes,dest):
             library=np.asarray(block.sum(axis=1)).ravel();x=block[:,idx];x=x.toarray() if hasattr(x,'toarray') else np.asarray(x)
             valid=library>0;x=np.log1p(10000*x.astype(np.float64)/np.maximum(library[:,None],1))
             for j in np.flatnonzero(valid):
-                i=start+j;key=(contexts[i],strata[i],target[i])
+                i=start+j
+                if not included[i]:continue
+                # Guides remain separate perturbation units; NT guides share the exact matched-control pool.
+                key=(contexts[i],strata[i],target[i],() if target[i]=='__control__' else units[i])
                 if key not in sums:sums[key]=np.zeros(len(genes),np.float64)
                 sums[key]+=x[j];counts[key]+=1
         rows=[];baseline=[];delta=[];skipped=0
-        for (context,stratum,t),total in sorted(sums.items()):
+        for (context,stratum,t,unit),total in sorted(sums.items()):
             if t=='__control__':continue
-            ctrl=(context,stratum,'__control__');n=counts[(context,stratum,t)];nc=counts.get(ctrl,0)
+            ctrl=(context,stratum,'__control__',());n=counts[(context,stratum,t,unit)];nc=counts.get(ctrl,0)
             if n<int(config.get('min_cells',20)) or nc<int(config.get('min_controls',20)):skipped+=1;continue
             b=sums[ctrl]/nc;baseline.append(b);delta.append(total/n-b)
             rows.append({'context':context,'cell_line':config['cell_line'],'target':t,'batch':repr(stratum),'dataset':config['dataset'],
-                'stimulus':config['stimulus'],'modality':config['modality'],'time':config['time'],'n_cells':n,'n_controls':nc})
+                'stimulus':config['stimulus'],'modality':config['modality'],'time':config['time'],'n_cells':n,'n_controls':nc,'unit':repr(unit)})
         if not rows:raise ValueError('No perturbation units with independently matched controls')
         meta=pd.DataFrame(rows);out=dest/'source_bundle.npz'
         np.savez_compressed(out,genes=genes,baseline=np.array(baseline,np.float32),delta=np.array(delta,np.float32),
-            unit_id=np.array([json.dumps([row['dataset'],row['context'],row['target'],row['batch']]) for row in rows],dtype='U'),
+            unit_id=np.array([json.dumps([row['dataset'],row['context'],row['target'],row['batch'],row['unit']]) for row in rows],dtype='U'),
             **{k:meta[k].to_numpy(dtype='U') for k in ('context','cell_line','target','dataset','batch','stimulus','modality','time')})
         report.update(training_ready=True,rows=len(rows),skipped_units=skipped,normalization='mean(log1p(10000 * raw counts / full RNA library)), exact context/stratum matched controls',bundle_sha256=file_sha256(out))
+        meta.to_csv(dest/'units.csv',index=False);report['metadata_audit']=metadata_audit
         write_json(dest/'adapter_report.json',report)
         return {'id':config['dataset'],'role':'source','bundle':str(out),'sha256':file_sha256(out),'target_namespace':'HGNC_symbol'}
     finally:a.file.close()

@@ -11,6 +11,7 @@ from ..model_agent.contracts import digest
 from .journal import fingerprint
 from .catalog import fetch,inspect_h5ad
 from .adapter import adapt
+from .profiles import curated_config
 from ..clean_background import run_lock
 from ..model_agent.contracts import safe_name
 
@@ -57,6 +58,16 @@ def _prepare_sources(work,catalog,panel,output,key,model='deepseek-v4-pro',reque
             try:
                 write_json(output/'progress.json',{'dataset':entry['id'],'stage':'download and inspect'});print('DATA AGENT:',entry['id'],'download and inspect',flush=True)
                 path=fetch(entry,work/'external'/entry['id']);inspection=inspect_h5ad(path);write_json(dest/'inspect.json',inspection)
+                if entry.get('adapter_profile'):
+                    import anndata as ad
+                    raw=ad.read_h5ad(path,backed='r')
+                    try:cfg=curated_config(entry,raw.obs,work.resolve())
+                    finally:raw.file.close()
+                    write_json(dest/'curated_profile.json',cfg)
+                    print('DATA AGENT:',entry['id'],'trusted dataset profile; no provider request',flush=True)
+                    added=adapt(path,cfg,genes,dest/'curated_adapter')
+                    ready.append({**entry,**added});record.update(status='READY',bundle=added['bundle'],adaptation='trusted dataset metadata profile; zero LLM calls')
+                    reports.append(record);print('DATA AGENT:',entry['id'],'READY',flush=True);continue
                 previous=None
                 for attempt in range(1,3):
                     write_json(output/'progress.json',{'dataset':entry['id'],'stage':'metadata proposal','attempt':attempt});print('DATA AGENT:',entry['id'],'metadata proposal',attempt,flush=True)
@@ -99,7 +110,8 @@ def _prepare_sources(work,catalog,panel,output,key,model='deepseek-v4-pro',reque
             'ready_source_bundles':sum(bool(e.get('bundle')) and e.get('role')=='source' for e in ready),'sealed_external_used':False,
             'provider_requests_max':4,'provider_output_tokens_max':131072})
         if any(e.get('role')=='source' and e.get('bundle') for e in ready):write_json(output/'data_agent_complete.json',{'ready_catalog_sha256':file_sha256(output/'ready_catalog.json')})
-        write_json(output/'progress.json',{'stage':'complete','ready_sources':sum(bool(e.get('bundle')) and e.get('role')=='source' for e in ready),'gene_count':len(panel)})
+        ready_count=sum(bool(e.get('bundle')) and e.get('role')=='source' for e in ready)
+        write_json(output/'progress.json',{'stage':'complete' if ready_count else 'blocked; no source ready; research search not started','ready_sources':ready_count,'gene_count':len(panel)})
         return output/'ready_catalog.json'
     finally:gateway.server.server_close()
 

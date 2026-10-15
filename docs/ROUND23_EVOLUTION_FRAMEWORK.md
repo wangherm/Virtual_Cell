@@ -128,6 +128,39 @@ web browsing or automatic ingestion of arbitrary studies.
 
 ## Data agent and common gene panel
 
+Known public files now use checksum-bound, trusted metadata profiles before any
+LLM field proposal. Papalexi guide labels such as `ATF2g1` map to canonical ATF2,
+while HTO strata and individual guide units remain separate. Controls are pooled
+only within the same cell line and HTO; guide identity is not a replicate label.
+Adamson 10X005 is an epistasis library: the single ATF6, PERK/EIF2AK3 and IRE1/ERN1
+constructs are retained, unassigned barcodes and explicitly listed multi-target
+constructs are excluded with counts. All other labels, including incidental pDS
+guides, are outside this predeclared three-single-construct subset and are audited
+as exclusions; they are never relabeled as controls. A constant cell-line stratum here
+means one accession/library, not an invented independent replicate. Unknown
+Papalexi guide identities or missing HTO/condition metadata still block adaptation.
+
+`metadata_audit.json`, `units.csv` and `curated_profile.json` retain exclusions,
+original guide/construct units, matched control counts and exact mappings. These
+known-file profiles use zero metadata API calls; new datasets without profiles
+still follow the bounded metadata-agent path below. The Adamson import follows
+the [original scPerturb curation](https://github.com/sanderlab/scPerturb/blob/master/dataset_processing/scripts/AdamsonWeissman2016.py);
+PERK and IRE1 identities are documented by [NCBI EIF2AK3](https://www.ncbi.nlm.nih.gov/gene/9451)
+and [NCBI ERN1](https://www.ncbi.nlm.nih.gov/gene/2081).
+
+If the first release stopped with both sources BLOCKED, update the repository
+and launch with new names, preserving the previous reports and paid-call ledger:
+
+```bash
+bash scripts/run_round23_full_autodl.sh round23_evolve_02 round23_data_02
+```
+
+Already checksummed files in `work/external` are reused without downloading.
+An old metadata-plan directory is immutable across framework updates and must
+not be reused. `stage=complete` in a metadata report means the inspection loop
+ended, not that any source is ready; the corrected status explicitly reports
+`blocked; no source ready; research search not started` when all sources fail.
+
 The Data Agent gets publication metadata, observation/variable fields and small
 metadata summaries. It can propose count layer, gene column, perturbation/control
 labels and matched-control strata, with one revision after an adapter error. It

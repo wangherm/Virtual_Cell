@@ -72,7 +72,7 @@ def preserve_data_evidence(root,work,catalog):
     if not ledger:return
     folder=Path(ledger).resolve().parent
     if not folder.is_relative_to((Path(work)/'data_agents').resolve()):raise ValueError('Data-agent evidence must be inside the work data_agents directory')
-    allowed={'api_ledger.json','summary.json','data_agent_plan.json','ready_catalog.json','data_agent_complete.json','inspect.json','adapter_report.json','gene_mapping.csv'}
+    allowed={'api_ledger.json','summary.json','data_agent_plan.json','ready_catalog.json','data_agent_complete.json','inspect.json','adapter_report.json','gene_mapping.csv','metadata_audit.json','units.csv','curated_profile.json'}
     for p in sorted(folder.rglob('*')):
         if p.is_file() and (p.name in allowed or p.name.startswith(('proposal_','blocked_')) and p.suffix=='.json'):
             freeze(root/'data_evidence'/p.relative_to(folder).with_suffix(p.suffix+'.snapshot.json'),{'sha256':file_sha256(p),'content':p.read_text(encoding='utf-8')})
@@ -283,8 +283,8 @@ def main():
         root=work/'runs'/a.name
         if not root.exists():
             print('Campaign not created yet; check data-agent acquisition logs before model search')
-            progress=work/'data_agents/round23_data_01/progress.json'
-            if progress.exists():print('Data agent:',json.dumps(read(progress),indent=2))
+            progress=sorted((work/'data_agents').glob('*/progress.json'),key=lambda p:p.stat().st_mtime,reverse=True)[:3]
+            for path in progress:print('Data agent',path.parent.name+':',json.dumps(read(path),indent=2))
         for name in ('stage.json','summary.json','INCOMPLETE.json','worker_progress.json','random_progress.json'):
             if (root/name).exists():
                 info=read(root/name)
