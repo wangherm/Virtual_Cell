@@ -141,6 +141,34 @@ worker inputs are hardlinked into an input cache where supported; private grader
 truths are never part of that cache, and links are detached before a legacy
 writer retries an interrupted worker.
 
+### Resume after the nullable feedback error
+
+An assessment that succeeds records `error: null`. The original source-feedback
+formatter attempted to slice that null as text, raising `TypeError` before the
+first Shinka cycle. Update the checkout and resume the **same** run:
+
+```bash
+cd /root/autodl-tmp/virtual_cell &&
+git -c http.version=HTTP/1.1 pull --ff-only &&
+read -rsp 'DeepSeek API key: ' DEEPSEEK_API_KEY &&
+echo && export DEEPSEEK_API_KEY &&
+screen -dmS vcell24resume bash scripts/run_round24_autodl.sh \
+  --name round24_mechanism_01 --resume
+```
+
+The shell launcher now uses `scripts/round24_entry.py`. This compatibility entry
+replaces only the controller's feedback projection, mapping missing/null errors
+to empty text while retaining the 1,600-character bound and search-only filter.
+It verifies the original journal chain and records its provenance in
+`feedback_compatibility.json`. It does not rewrite the journal, run plan, model
+code or grading fingerprint. Existing checksummed assessments are reused; an
+interrupted assessment may still need to finish. Keep the same configuration,
+Python environment and parent run. Do not delete the run or edit frozen hashes.
+
+`scripts/run_round24.py` is the frozen implementation behind this entrypoint;
+invoke the shell launcher (or `scripts/round24_entry.py`) for fresh runs and
+resumes. Other numerical/configuration changes still require a new run name.
+
 If using the offline bundle, upload it, replace the path below with the actual
 upload location, then launch using the commands above after the merge:
 

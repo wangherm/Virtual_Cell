@@ -6,4 +6,4 @@ mkdir -p "$work/logs"
 log="$work/logs/round24_pipeline_$(date +%Y%m%d_%H%M%S).log"
 echo "LOG: $log"
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
-"$repo/.venv/bin/python" -u "$repo/scripts/run_round24.py" --work-dir "$work" "$@" 2>&1 | tee -a "$log"
+"$repo/.venv/bin/python" -u "$repo/scripts/round24_entry.py" --work-dir "$work" "$@" 2>&1 | tee -a "$log"

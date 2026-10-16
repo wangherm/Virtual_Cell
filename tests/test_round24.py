@@ -193,3 +193,72 @@ def test_feedback_excludes_confirmation_scores(tmp_path,monkeypatch):
         p=tmp_path/'assessments'/phase/'assessment.json';write_json(p,{'identity':{'phase':phase,'scope':'evolved'},'metrics':{'public':{'evidence':secret}},'module_sha256':'code'})
     m.source_memory(tmp_path)
     text=(tmp_path/'source_feedback.json').read_text();assert 'source allowed' in text and 'CONFIRMATION_SENTINEL' not in text
+
+
+def feedback_entry(monkeypatch):
+    monkeypatch.syspath_prepend(str(REPO/'scripts'))
+    spec=importlib.util.spec_from_file_location('round24_feedback_entry',REPO/'scripts/round24_entry.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module
+
+
+def test_nullable_journal_feedback_preserves_bounds_and_source_boundary(tmp_path,monkeypatch):
+    from vcell.evolution.journal import append,events
+    entry=feedback_entry(monkeypatch);journal=tmp_path/'journal.jsonl'
+    append(journal,'assessment',phase='search',error=None,score=.25)
+    append(journal,'assessment',phase='search',score=.5)
+    append(journal,'assessment',phase='search',error='prefix'+('x'*1700))
+    append(journal,'assessment',phase='confirmation',error='CONFIRMATION_SENTINEL',score=-999)
+    append(journal,'assessment',phase='outer',error='OUTER_SENTINEL',score=-1000)
+    raw=journal.read_bytes();result=entry.source_feedback(journal,limit=3)
+    assert [r['error'] for r in result]==['','','x'*1600]
+    assert [r['score'] for r in result[:2]]==[.25,.5]
+    assert len(entry.source_feedback(journal,limit=1))==1
+    assert 'SENTINEL' not in json.dumps(result)
+    assert journal.read_bytes()==raw and len(events(journal))==5
+    audit=read(tmp_path/'feedback_compatibility.json')
+    assert audit['journal_sha256']==file_sha256(journal)
+    assert not audit['journal_rewritten'] and not audit['numerical_fingerprint_overridden']
+
+
+def test_feedback_fix_reuses_real_assessment_and_frozen_plan(tmp_path,monkeypatch):
+    from vcell.evolution.journal import events
+    fixture_root(tmp_path);entry=feedback_entry(monkeypatch)
+    spec=importlib.util.spec_from_file_location('round24_null_resume',REPO/'scripts/run_round24.py')
+    controller=importlib.util.module_from_spec(spec);spec.loader.exec_module(controller)
+    result=runtime.assess(tmp_path,modules.simple_module(),controls=False,
+        execute_fn=lambda code,d,*args:d['query_support'])
+    assert result['status']=='valid' and events(tmp_path/'journal.jsonl')[-1]['error'] is None
+    plan=(tmp_path/'run_plan.json').read_bytes();journal=(tmp_path/'journal.jsonl').read_bytes()
+    assessment=Path(result['directory'])/'assessment.json';saved=assessment.read_bytes()
+    before=runtime.fingerprint(REPO)
+    entry.configure_controller(controller).source_memory(tmp_path)
+    assert read(tmp_path/'source_feedback.json')['history'][-1]['error']==''
+    assert runtime.assess(tmp_path,modules.simple_module(),controls=False,
+        execute_fn=lambda *args:pytest.fail('Completed assessment was retrained'))==result
+    assert runtime.fingerprint(REPO)==before
+    assert (tmp_path/'run_plan.json').read_bytes()==plan
+    assert (tmp_path/'journal.jsonl').read_bytes()==journal
+    assert assessment.read_bytes()==saved
+
+
+def test_feedback_fix_does_not_hide_corrupt_journal_or_invalid_error(tmp_path,monkeypatch):
+    from vcell.evolution.journal import append
+    entry=feedback_entry(monkeypatch);journal=tmp_path/'journal.jsonl'
+    append(journal,'assessment',phase='search',error={'unexpected':'object'})
+    with pytest.raises(TypeError,match='string or null'):entry.source_feedback(journal)
+    journal.write_bytes(journal.read_bytes().replace(b'assessment',b'tampered!!'))
+    with pytest.raises(ValueError,match='journal chain'):entry.source_feedback(journal)
+
+
+def test_default_launcher_dispatches_compatibility_entry(monkeypatch):
+    from types import SimpleNamespace
+    entry=feedback_entry(monkeypatch);calls=[]
+    controller=SimpleNamespace(feedback=None,main=lambda:calls.append(tuple(sys.argv)))
+    monkeypatch.setitem(sys.modules,'run_round24',controller)
+    monkeypatch.setattr(sys,'argv',['round24_entry.py','--name','existing','--resume'])
+    entry.main()
+    assert calls==[('round24_entry.py','--name','existing','--resume')]
+    assert controller.feedback is entry.source_feedback
+    launcher=(REPO/'scripts/run_round24_autodl.sh').read_text()
+    assert 'scripts/round24_entry.py' in launcher
