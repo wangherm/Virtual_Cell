@@ -1,0 +1,9 @@
+{
+  "reference": "round23_winner.py",
+  "sha256": "e8b08448d8e7d92c8ac0c4c511ebec117c0f1e3f8b573a59582761d900568314",
+  "source": "User-provided round23_review_light.tar.gz, pools/repeat_expanded/evaluations/search/e8b08448d8e7d92c8ac0c4c511ebec117c0f1e3f8b573a59582761d900568314/candidate.py",
+  "purpose": "Exact historical reference for anchored ablations, never imported by the controller. Actual prediction executes only in the kernel-isolated server worker.",
+  "historical_confirmation_mse": 0.004439093612579181,
+  "historical_baseline_mse": 0.004544308921608612,
+  "scope": "Supported-repeat development evidence, not zero-shot transfer or independent external validation"
+}
