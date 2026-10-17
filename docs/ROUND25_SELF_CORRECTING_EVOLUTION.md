@@ -229,6 +229,25 @@ Then run the same launch/key command, omitting `git pull`.
 
 ## Outputs and interpretation
 
+### Recovery from the initial baseline path error
+
+The initial release incorrectly required baseline artifacts to be inside
+`baseline_budget/`, although production places them in `baselines/{task}/`.
+The corrected frozen pool plan has an explicit `budget.worker_root` pointing to
+that pool's `assessments/` directory. `budget.root` remains the shared accounting
+and input-cache directory. Sibling pools cannot write into each other's worker
+directories, and both baseline tasks still share one evaluation-time cap.
+
+If a campaign stopped at the first baseline with `Worker outside assigned budget
+root`, update the code and start a new name, such as `round25_self_correct_02`.
+Keep the failed directory unchanged: the correction changes the frozen code
+fingerprint, and the old run also contains a cached invalid assessment. Do not
+edit hashes or remove cache records to force a resume. At this failure point no
+agent API request or numerical baseline training has started; only the kernel
+preflight has consumed evaluation time. The new campaign repeats preflight and
+baseline preparation. Subsequent interruptions of the corrected campaign can
+use `--resume` with its new name.
+
 The new directory is `/root/autodl-tmp/vcell-work/runs/round25_self_correct_01`.
 
 - `campaign_plan.json`, `lineage.json`, `shinka_capabilities.json`,

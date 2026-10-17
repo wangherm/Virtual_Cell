@@ -33,7 +33,8 @@ def charged(root, pool=None):
 
 def shared_execute(code, data, dest, budget, python):
     dest = Path(dest).resolve(); root = Path(budget['root']).resolve()
-    if not dest.is_relative_to(root): raise ValueError('Worker outside assigned budget root')
+    worker_root = Path(budget['worker_root']).resolve()
+    if not dest.is_relative_to(worker_root): raise ValueError('Worker outside assigned artifact root')
     path = dest/'input.npz'
     if path.exists() and path.stat().st_nlink > 1: path.unlink()
     try:
@@ -41,7 +42,7 @@ def shared_execute(code, data, dest, budget, python):
     finally:
         if path.is_file():
             import os
-            cache = root/'input_cache'/f'{file_sha256(path)}.npz'; cache.parent.mkdir(exist_ok=True)
+            cache = root/'input_cache'/f'{file_sha256(path)}.npz'; cache.parent.mkdir(parents=True, exist_ok=True)
             if cache.exists() and file_sha256(cache) != file_sha256(path): raise ValueError('Input cache changed')
             try:
                 if not cache.exists(): os.link(path, cache)

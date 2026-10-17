@@ -69,6 +69,8 @@ def budget(root,cfg,hours,device):
 def pool_plan(pool,root,task,arm,cfg,folds,parent,device,baseline=False):
     pool.mkdir(parents=True,exist_ok=True)
     b=budget(root,cfg,cfg['baseline_hours'] if baseline else cfg['arm_hours'],device)
+    # Artifact confinement is per pool; accounting/cache may be shared by sibling pools.
+    b['worker_root']=str((pool/'assessments').resolve())
     freeze(pool/'run_plan.json',{'repo':str(REPO),'python':sys.executable,'framework_sha256':fingerprint(REPO),
         'task':task,'arm':arm,'config':cfg,'budget':b,'parent':str(parent),
         'parent_sha256':file_sha256(parent/'COMPLETE.json'),'test_evaluated':False})

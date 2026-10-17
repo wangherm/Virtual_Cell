@@ -32,7 +32,7 @@ def make_pool(pool,arm='meta',task='repeat'):
     cfg=read(REPO/'configs/round25.json');cfg.update(panel_genes=6,steps=5,worker_seconds=20)
     write_json(pool/'folds.json',{'search':[fold],'confirmation':[fold]})
     write_json(pool/'run_plan.json',{'repo':str(REPO),'python':sys.executable,'framework_sha256':runtime.fingerprint(REPO),
-        'task':task,'arm':arm,'config':cfg,'budget':{'root':str(pool.parent),'seed':17,'device':'cpu','steps':5,'seconds':20,
+        'task':task,'arm':arm,'config':cfg,'budget':{'root':str(pool.parent),'worker_root':str(pool/'assessments'),'seed':17,'device':'cpu','steps':5,'seconds':20,
             'ram_bytes':2*1024**3,'evaluation_seconds_max':3600}})
     reference={fold['name']:{'path':fold['baseline'],'sha256':fold['baseline_sha256']}}
     write_json(pool/'baseline_selection.json',{'search':reference,'confirmation':reference})
@@ -44,6 +44,48 @@ def make_pool(pool,arm='meta',task='repeat'):
 def toy_execute(code,d,*args):
     if 'BROKEN_CANDIDATE' in code:raise TypeError('actual controlled dtype failure')
     return d['query_support']*(.9 if 'REPAIRED_CANDIDATE' in code else 1.)
+
+
+def production_baseline_pool(tmp_path, monkeypatch):
+    m=controller(monkeypatch)
+    campaign=tmp_path/'campaign';pool=campaign/'baselines/repeat'
+    cfg,body=make_pool(pool,arm='fixed');folds={'repeat':read(pool/'folds.json')}
+    # Recreate the production plan, including the sibling accounting directory.
+    (pool/'run_plan.json').unlink();(pool/'folds.json').unlink()
+    (pool/'baseline_selection.json').unlink()
+    parent=tmp_path/'parent';write_json(parent/'COMPLETE.json',{'fixture':True})
+    m.pool_plan(pool,campaign/'baseline_budget','repeat','fixed',cfg,folds,parent,'cpu',baseline=True)
+    return pool,body
+
+
+def test_production_baseline_artifacts_use_separate_shared_budget(tmp_path,monkeypatch):
+    from vcell.round25.prepare import freeze_baselines
+    pool,body=production_baseline_pool(tmp_path,monkeypatch)
+    b=read(pool/'run_plan.json')['budget'];calls=[]
+    assert not pool.is_relative_to(Path(b['root']))
+    assert Path(b['worker_root'])==pool/'assessments'
+    def execute(code,data,dest,budget,python):
+        calls.append((Path(dest),Path(budget['root'])))
+        dest.mkdir(parents=True,exist_ok=True)
+        np.savez_compressed(dest/'input.npz',**data)
+        return toy_execute(code,data)
+    monkeypatch.setattr(runtime,'execute',execute)
+    selected=freeze_baselines(pool,{'uniform_ensemble':body})
+    assert selected['search_record']['status']==selected['confirmation_record']['status']=='valid'
+    assert calls and all(d.is_relative_to(pool/'assessments') and r==pool.parents[1]/'baseline_budget' for d,r in calls)
+    assert list((Path(b['root'])/'input_cache').glob('*.npz'))
+    before=len(calls)
+    assert freeze_baselines(pool,{'uniform_ensemble':body})==selected and len(calls)==before
+    # Repeat a worker write after deduplication; detach the input link before writing.
+    dest=calls[0][0];path=dest/'input.npz';original=path.read_bytes()
+    runtime.shared_execute(body,{'query_support':np.ones((1,6))},dest,b,sys.executable)
+    assert any(p.read_bytes()==original for p in (Path(b['root'])/'input_cache').glob('*.npz'))
+    before=len(calls)
+    for outside in (pool.parent/'transfer/assessments/worker',Path(b['root'])/'worker',tmp_path/'outside'):
+        with pytest.raises(ValueError,match='artifact root'):
+            runtime.shared_execute(body,{},outside,b,sys.executable)
+        assert not outside.exists()
+    assert len(calls)==before
 
 
 def action_for(r,kind='refine_parent'):
@@ -347,6 +389,20 @@ def test_all_roles_share_a_single_provider_cap_and_changed_ticket_is_not_resent(
         relay.scope='critic_1';relay.role='critic';assert relay.forward(body)[0]==400
         assert len(calls)==1 and len(relay.records)==1
     finally:relay.server.server_close()
+
+
+@pytest.mark.skipif(sys.platform!='linux',reason='Landlock/seccomp worker requires Linux')
+def test_real_kernel_baseline_with_sibling_budget_directory(tmp_path,monkeypatch):
+    from vcell.round25.prepare import freeze_baselines
+    pool,body=production_baseline_pool(tmp_path,monkeypatch)
+    selected=freeze_baselines(pool,{'uniform_ensemble':body})
+    assert selected['search_record']['status']==selected['confirmation_record']['status']=='valid'
+    ledger_root=pool.parents[1]/'baseline_budget'
+    ledger=read(ledger_root/'evaluation_budget.json')
+    assert ledger['workers'] and all(r['status']=='complete' for r in ledger['workers'].values())
+    assert all(Path(k.rsplit('#',1)[0]).is_relative_to(pool/'assessments') for k in ledger['workers'])
+    assert runtime.charged(ledger_root)>0 and not (pool/'evaluation_budget.json').exists()
+    assert freeze_baselines(pool,{'uniform_ensemble':body})==selected
 
 
 @pytest.mark.skipif(sys.platform!='linux',reason='Landlock/seccomp worker requires Linux')
