@@ -83,9 +83,9 @@ def measure(frame, baseline, controls, cfg, task):
     return result
 
 
-def assess(pool, module, phase='search', controls=True, baseline=False, execute_fn=None):
+def assess(pool, module, phase='search', controls=True, baseline=False, execute_fn=None, framework_fingerprint=None):
     pool = Path(pool); plan = read(pool/'run_plan.json'); cfg = plan['config']; task = plan['task']
-    if fingerprint(plan['repo']) != plan['framework_sha256']: raise ValueError('Round25 code changed; create a new campaign')
+    if (framework_fingerprint or fingerprint)(plan['repo']) != plan['framework_sha256']: raise ValueError('Research framework code changed; create a new campaign')
     if phase not in ('search', 'confirmation'): raise ValueError('No outer or sealed external access in Round25')
     if phase != 'search' and not baseline and not (pool/'search_frozen.json').exists(): raise ValueError('Freeze source finalists before confirmation')
     if not baseline and not (pool/'baseline_selection.json').exists(): raise ValueError('Freeze matched fixed baselines before search')
@@ -100,7 +100,7 @@ def assess(pool, module, phase='search', controls=True, baseline=False, execute_
         for name, sha in old['files'].items():
             if file_sha256(dest/name) != sha: raise ValueError('Cached assessment payload changed: '+name)
         return old
-    dest.mkdir(parents=True, exist_ok=True); (dest/'module.py').write_text(module, encoding='utf-8')
+    dest.mkdir(parents=True, exist_ok=True); (dest/'module.py').write_text(module, encoding='utf-8', newline='\n')
     budget = dict(plan['budget'])
     if phase == 'search' and not baseline: budget['evaluation_seconds_max'] *= cfg['search_fraction']
     run = execute_fn or shared_execute
