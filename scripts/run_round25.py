@@ -233,6 +233,7 @@ def search_arm(root,arm,cfg,shinka):
                 probe=run_probe(pool,action) if action else None
                 plan={'task':task,'action':asdict(action) if action else None,'repair_origin':origin,
                     'state':copy.deepcopy(state),'probe':probe,'generation_target':next_generation(pool),
+                    'prediction_reference_sha256':action.parent_code_sha256 if action and action.parent_code_sha256 else hashlib.sha256((pool/'seed.py').read_text(encoding='utf-8').encode()).hexdigest(),
                     'before_ids':[r['module_sha256'] for r in source_records(pool)],'before_novel':len(allnovel[task])}
                 freeze(planned,plan)
             write_json(pool/'active_action.json',{'action':plan['action'],'probe_result':plan.get('probe'),'banned':state['banned'][task]})
@@ -261,9 +262,11 @@ def search_arm(root,arm,cfg,shinka):
                     state['pending_repairs'][task]={'parent':latest['module_sha256'],'origin':origin or latest['module_sha256']}
                     state['repair_origins'][latest['module_sha256']]=origin or latest['module_sha256']
                 else:state['pending_repairs'].pop(task,None)
-                if action and action.parent_code_sha256:
-                    before=next(r for r in rows if r['module_sha256']==action.parent_code_sha256)
+                if action:
+                    before=next(r for r in rows if r['module_sha256']==plan['prediction_reference_sha256'])
                     outcome=prediction_outcome(action,before,latest)
+                    outcome['reference_sha256']=before['module_sha256']
+                    outcome['reference_kind']='declared_parent' if action.parent_code_sha256 else 'predeclared_fixed_seed'
                     diff=''.join(difflib.unified_diff(Path(before['module']).read_text().splitlines(True),Path(latest['module']).read_text().splitlines(True),fromfile='parent',tofile='child'))
                     (folder/'code.diff').write_text(diff,encoding='utf-8')
                 if latest['status']=='invalid' and quota_failure(latest):state['stopped'].append(task)

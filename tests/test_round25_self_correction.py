@@ -173,6 +173,37 @@ def test_three_arm_bounded_repair_loop_and_exact_resume(tmp_path,monkeypatch):
     m.search_arm(root,'repair',cfg,'mock-shinka');assert len(requests)==3
 
 
+def test_parentless_new_mechanism_has_a_predeclared_measured_reference(tmp_path,monkeypatch):
+    m=controller(monkeypatch);root=tmp_path/'campaign';armroot=root/'arms/meta'
+    for task in ('repeat','transfer'):cfg,body=make_pool(armroot/task,task=task)
+    cfg.update(initial_valid_per_arm=1,valid_target_per_arm=1,max_turns_per_arm=2)
+    actual=runtime.assess
+    monkeypatch.setattr(m,'assess',lambda *args,**kwargs:actual(*args,**kwargs,execute_fn=toy_execute))
+    gateways=[]
+    class FakeGateway:
+        def __init__(self,path,*args,**kwargs):self.path=Path(path);self.records=[];gateways.append(self)
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+    monkeypatch.setattr(m,'ResearchGateway',FakeGateway)
+    def choose(pool,*args):
+        seed=m.assess(pool,(pool/'seed.py').read_text())
+        action=asdict(action_for(seed,'explore_new_mechanism'));action['parent_code_sha256']=None
+        return sc.ResearchAction(**action),None,None
+    monkeypatch.setattr(m,'choose_action',choose)
+    def run(argv,**kwargs):
+        pool=Path(argv[argv.index('--pool')+1]);g=gateways[-1]
+        g.records.append({'status':'complete','charged_output_tokens':1});write_json(g.path,g.records)
+        m.assess(pool,'# REPAIRED_CANDIDATE\ndef fit_predict(data,budget):\n    return data["query_support"]\n')
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(m.subprocess,'run',run);monkeypatch.setenv('DEEPSEEK_API_KEY','mock')
+    m.search_arm(root,'meta',cfg,'unused')
+    plan=read(armroot/'turns/000/plan.json')
+    outcome=next(r for r in m.events(root/'research_decisions.jsonl') if r['kind']=='measured_action_outcome')['prediction']
+    assert outcome['reference_kind']=='predeclared_fixed_seed'
+    assert outcome['reference_sha256']==plan['prediction_reference_sha256']
+    assert outcome['status'] in ('supported','not_supported')
+
+
 def test_meta_changes_scientific_hypothesis_without_fake_runtime_repair(tmp_path,monkeypatch):
     m=controller(monkeypatch);pool=tmp_path/'campaign/arms/meta/repeat';cfg,body=make_pool(pool)
     r=runtime.assess(pool,body,execute_fn=toy_execute)

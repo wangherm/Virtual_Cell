@@ -99,6 +99,9 @@ child is compared to the specified parent, and the hypothesis is recorded as
 supported, unsupported or undefined. This is a source observation, not causal
 proof that the critic itself improved the method. Code diffs, original failures,
 repair lineage and outcomes are retained.
+For a new-mechanism action with no declared parent, the fixed source-selected seed
+is frozen as its prediction reference before the experiment. The controller does
+not choose a convenient reference after seeing the child's score.
 
 The critic may name a mechanism such as shared/target residual decomposition,
 reference reliability, conditional transfer, low-rank/sparse responses, graph
