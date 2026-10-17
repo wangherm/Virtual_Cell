@@ -357,6 +357,7 @@ source code. The default pipeline uses one device, not distributed training.
 
 ## Documentation
 
+- [Round 25: matched Shinka evolution, bounded code repair and source-only scientific strategy](docs/ROUND25_SELF_CORRECTING_EVOLUTION.md)
 - [Round 24: frozen winner replay, mechanism/data ablations, separate identity controls and bounded module evolution](docs/ROUND24_MECHANISM_EVOLUTION.md)
 - [Round 23: persistent agent evolution, data broker, source repair memory and bounded 100-candidate campaigns](docs/ROUND23_EVOLUTION_FRAMEWORK.md)
 - [Round 22: ShinkaEvolve autonomous method discovery, isolated candidates and source confirmation](docs/ROUND22_SHINKA_EVOLVE.md)
