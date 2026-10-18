@@ -1,0 +1,20 @@
+{
+  "model": "deepseek-v4-pro", "reasoning_effort": "low",
+  "api_max_tokens": 32768, "critic_max_tokens": 8192,
+  "api_requests_per_arm": 30, "api_output_tokens_per_arm": 900000, "api_failure_limit": 3,
+  "arms": ["shinka", "repair", "meta"], "tasks": ["repeat", "transfer"],
+  "valid_target_per_arm": 10, "task_targets": {"repeat": 5, "transfer": 5},
+  "minimum_branch_exploration": 3, "max_turns_per_arm": 50,
+  "critic_every_valid": 2, "stagnation_turns": 4, "max_repairs_per_candidate": 2,
+  "maximum_consecutive_critic_fallbacks": 2,
+  "baseline_hours": 2.0, "arm_hours": 3.0, "pilot_hours": 2.25, "pilot_requests": 6,
+  "extension_requests": 0, "extension_hours": 0.0,
+  "search_fraction": 0.8, "maximum_task_search_share": 0.7, "repeat_share": 0.5,
+  "worker_seconds": 120, "steps": 500, "seed": 17, "panel_genes": 1809,
+  "port": 18027, "disk_reserve_gib": 10, "heartbeat_seconds": 10,
+  "minimum_mse_gain": 0.01, "maximum_strong_mse_ratio": 1.0,
+  "minimum_specificity_change": 0.0, "minimum_amplitude_ratio": 0.05, "behavior_quantum": 0.00001,
+  "counterfactual_variants": ["correct", "support_wrong", "identity_wrong", "both_wrong", "support_shuffled", "identity_shuffled", "both_shuffled"],
+  "new_source_datasets": ["papalexi_thp1", "adamson_k562"],
+  "confirmation_scope": "historically_viewed_development", "independent_confirmation": false
+}

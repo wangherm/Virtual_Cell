@@ -358,6 +358,7 @@ source code. The default pipeline uses one device, not distributed training.
 ## Documentation
 
 - [Round 26: verified scientific critic, matched Pareto evolution and separate Meta extension](docs/ROUND26_SCIENTIFIC_CRITIC.md)
+- [Round 27: persistent Virtual Cell agent, balanced tasks, domain knowledge and hypothesis revision memory](docs/ROUND27_VIRTUAL_CELL_AGENT.md)
 - [Round 25: matched Shinka evolution, bounded code repair and source-only scientific strategy](docs/ROUND25_SELF_CORRECTING_EVOLUTION.md)
 - [Round 24: frozen winner replay, mechanism/data ablations, separate identity controls and bounded module evolution](docs/ROUND24_MECHANISM_EVOLUTION.md)
 - [Round 23: persistent agent evolution, data broker, source repair memory and bounded 100-candidate campaigns](docs/ROUND23_EVOLUTION_FRAMEWORK.md)
