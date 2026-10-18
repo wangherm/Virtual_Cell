@@ -119,7 +119,7 @@ def generation(root,pool,folder,action,attribution,banned,turn,gateway,relay,shi
     freeze(marker,value);return value
 
 
-def live_smoke(root,cfg,shared,shinka):
+def live_smoke(root,cfg,shared,shinka,recover_from=None):
     marker=root/'LIVE_SMOKE_COMPLETE.json'
     if marker.exists():
         done=read(marker)
@@ -130,18 +130,47 @@ def live_smoke(root,cfg,shared,shinka):
             if file_sha256(Path(child['directory'])/name)!=sha:raise ValueError('Live smoke numerical payload changed')
         return done
     armroot=root/'pilot/meta';pool=armroot/'repeat';item=shared['repeat']
-    pool_plan(pool,armroot,'repeat','pilot',cfg,item['folds'],item['baseline'],item['common'],REPO,sys.executable,cfg['pilot_hours'])
+    # One pilot task and no pilot confirmation: use the entire dedicated cap.
+    # Formal matched search keeps its 80% source / 70% per-task limits unchanged.
+    pilot_cfg=copy.deepcopy(cfg);pilot_cfg.update(search_fraction=1.,maximum_task_search_share=1.)
+    required=(2+len(item['folds']['search'])*len(cfg['counterfactual_variants']))*cfg['worker_seconds']
+    if cfg['pilot_hours']*3600<required:
+        raise ValueError(f'Pilot allowance cannot cover one complete candidate: need {required} worker seconds before any API call')
+    freeze(root/'pilot_budget.json',{'search_folds':len(item['folds']['search']),'variants':len(cfg['counterfactual_variants']),
+        'contract_workers':2,'maximum_seconds_one_candidate':required,'dedicated_seconds':cfg['pilot_hours']*3600,
+        'search_fraction':1.,'task_share':1.,'shared_seed_reused':True,'matched_arm_policy_changed':False})
+    pool_plan(pool,armroot,'repeat','pilot',pilot_cfg,item['folds'],item['baseline'],item['common'],REPO,sys.executable,cfg['pilot_hours'])
+    recovered=None
+    if recover_from:
+        from vcell.round26.recovery import recover_pilot
+        recovered=recover_pilot(root,recover_from,cfg,item)
     relay=secrets.token_hex(24)
     with gateway_for(armroot,cfg,relay,cfg['pilot_requests'],cfg['pilot_requests']*cfg['api_max_tokens']) as gateway:
         stage(root,'authenticated scientific critic smoke; main searches gated')
         allowed={'refine_parent','run_source_probe','explore_new_mechanism'}
-        first=decide(pool,gateway,'pilot_initial',cfg['critic_max_tokens'],allowed_actions=allowed)
-        if first['attribution']!='critic':raise RuntimeError('Live critic gate failed; no main search launched. Inspect pilot decisions and API ledger')
-        action=ResearchAction(**first['action'])
-        outcome=generation(root,pool,armroot/'turns/000',action,'critic',[],0,gateway,relay,shinka)
+        if recovered:
+            action=recovered['action'];snapshot=recovered['snapshot']
+            stage(root,'re-evaluate quota-failed native candidate; paid decision and code reused',module_sha256=snapshot['module_sha256'])
+            child=assess(pool,recovered['module'])
+            before=next(r for r in source_records(pool) if r['module_sha256']==snapshot['prediction_reference_sha256'])
+            outcome={'latest':child['module_sha256'],'children':[{'module_sha256':child['module_sha256'],'status':child['status']}],
+                'prediction':prediction_outcome(action,before,child),'attribution':'critic',
+                'native_generation_reused':True,'native_child_id':snapshot['native_child_id'],
+                'new_critic_requests':0,'new_mutation_requests':0}
+            freeze(armroot/'turns/000/done.json',outcome)
+            event(root,'pilot/0/recovery','resource_recovery',arm='pilot',task='repeat',action=asdict(action),
+                module_sha256=child['module_sha256'],prediction=outcome['prediction'],imported_paid_requests=snapshot['imported_paid_requests'])
+        else:
+            first=decide(pool,gateway,'pilot_initial',cfg['critic_max_tokens'],allowed_actions=allowed)
+            if first['attribution']!='critic':raise RuntimeError('Live critic gate failed; no main search launched. Inspect pilot decisions and API ledger')
+            action=ResearchAction(**first['action'])
+            outcome=generation(root,pool,armroot/'turns/000',action,'critic',[],0,gateway,relay,shinka)
         child=next((r for r in source_records(pool) if r['module_sha256']==outcome['latest']),None)
         if child is None or child['status']!='valid' or not outcome['prediction'] or outcome['prediction']['status']=='undefined':
-            raise RuntimeError('Live smoke did not produce a valid measured child and hypothesis outcome; main searches blocked')
+            reason=(child.get('error') if child and child['status']!='valid' else
+                'No new native assessment; inspect pilot/meta/turns/000/shinka.log' if child is None else
+                'Hypothesis metric is undefined: '+str(outcome.get('prediction')))
+            raise RuntimeError('Live smoke did not produce a valid measured child and hypothesis outcome; main searches blocked. Cause: '+str(reason)[:1000])
         update=decide(pool,gateway,'pilot_after_result',cfg['critic_max_tokens'],allowed_actions=allowed,required_evidence=child['module_sha256'])
         if update['attribution']!='critic':raise RuntimeError('Post-experiment critic update failed; main searches blocked')
         checked=[pool/'decisions/pilot_initial/decision.json',pool/'decisions/pilot_after_result/decision.json',
@@ -150,6 +179,8 @@ def live_smoke(root,cfg,shared,shinka):
             'child_record':(Path(child['directory'])/'assessment.json').relative_to(root).as_posix(),
             'api_requests':len(gateway.records),'scope':'source_only_capability_gate; excluded from matched search',
             'files':{p.relative_to(root).as_posix():file_sha256(p) for p in checked},'test_evaluated':False}
+        if recovered:
+            value['recovery']=recovered['snapshot'];value['files']['pilot_recovery.json']=file_sha256(root/'pilot_recovery.json')
         freeze(marker,value);return value
 
 
@@ -277,6 +308,7 @@ def launch(a):
     root.mkdir(parents=True,exist_ok=True)
     freeze(root/'campaign_plan.json',{'repo':str(REPO),'python':sys.executable,'framework_sha256':fingerprint(REPO),'config':cfg,
         'parent':str(parent),'parent_sha256':file_sha256(parent/'COMPLETE.json'),'extend_meta':a.extend_meta,
+        'recover_pilot_from':str(Path(a.recover_pilot_from).resolve()) if getattr(a,'recover_pilot_from',None) else None,
         'versions':{n:version(n) for n in ('numpy','pandas','scipy','torch')},'test_evaluated':False})
     if (root/'COMPLETE.json').exists():verify(root);print('ROUND26 COMPLETE VERIFIED:',root);return root
     shinka=Path(a.shinka_python or work/'envs/shinka/bin/python')
@@ -293,7 +325,8 @@ def launch(a):
             'seconds':cfg['worker_seconds'],'ram_bytes':12*1024**3,'evaluation_seconds_max':cfg['baseline_hours']*3600},sys.executable)
         shared=prepare(root,parent,cfg,REPO,sys.executable,stage)
         if a.mode=='preflight':stage(root,'numeric preflight complete; live gate and searches not run');return root
-        live_smoke(root,cfg,shared,shinka)
+        if getattr(a,'recover_pilot_from',None):live_smoke(root,cfg,shared,shinka,a.recover_pilot_from)
+        else:live_smoke(root,cfg,shared,shinka)
         if a.mode=='live-smoke':stage(root,'live critic generation and result update verified; matched search not run');return root
         for arm in cfg['arms']:search_arm(root,arm,cfg,shinka)
         # Freeze the matched comparison before any extension; confirmation remains unopened here.
@@ -314,6 +347,7 @@ def launch(a):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--work-dir',default='/root/autodl-tmp/vcell-work')
     p.add_argument('--name',default='round26_critic_01');p.add_argument('--round25-run');p.add_argument('--config',default=str(REPO/'configs/round26.json'))
+    p.add_argument('--recover-pilot-from',help='Read-only resource recovery from a quota-failed pilot; requires a new run name')
     p.add_argument('--shinka-python');p.add_argument('--device',choices=['cuda','cpu'],default='cuda')
     p.add_argument('--mode',choices=['preflight','live-smoke','all'],default='all');p.add_argument('--resume',action='store_true');p.add_argument('--extend-meta',action='store_true');a=p.parse_args()
     with run_lock(Path(a.work_dir)/'runs'/('.'+a.name+'.lock')):

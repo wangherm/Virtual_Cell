@@ -35,6 +35,10 @@ def pool_fixture(pool,task='repeat',arm='meta',real=False):
     selection={**read(pool/'baseline_selection.json'),'method':'support','module_sha256':base['module_sha256'],
         'search_record':base,'confirmation_record':base}
     write_json(pool/'baseline_selection.json',selection)
+    # Reassess under the final frozen selector; the shared record must bind its
+    # actual plan/folds/comparator hashes rather than a subsequently edited stub.
+    base=runtime.assess(pool,body,execute_fn=None if real else toy_execute)
+    assert base['status']=='valid',base.get('error')
     path=Path(base['directory'])/'assessment.json'
     write_json(pool/'common_sources.json',[{'record':str(path),'sha256':file_sha256(path)}])
     return cfg,body,base

@@ -6,7 +6,7 @@
   "valid_target_per_arm": 10, "max_turns_per_arm": 40,
   "critic_every_valid": 3, "stagnation_turns": 4, "max_repairs_per_candidate": 2,
   "maximum_consecutive_critic_fallbacks": 2,
-  "baseline_hours": 1.5, "arm_hours": 2.5, "pilot_hours": 0.5, "pilot_requests": 6,
+  "baseline_hours": 1.5, "arm_hours": 2.5, "pilot_hours": 2.25, "pilot_requests": 6,
   "extension_requests": 12, "extension_output_tokens": 450000, "extension_valid_target": 6, "extension_hours": 1.5,
   "extension_minimum_source_gain": 0.001,
   "search_fraction": 0.8, "maximum_task_search_share": 0.7, "repeat_share": 0.6,

@@ -43,12 +43,20 @@ confirmed transfer improvements.
    historical development confirmation. Record every selected method; do not
    choose a new winner using those confirmation scores.
 
-The default aggregate numerical-worker allowance is 9.5 hours: shared preparation
-1.5, live gate .5, and three arms at 2.5. With extension it is 11 hours. The live
+The default aggregate numerical-worker allowance is 11.25 hours: shared preparation
+1.5, live gate 2.25, and three arms at 2.5. With extension it is 12.75 hours. The live
 gate has at most six requests, so default total requests are at most 66, or 78
 with extension. Provider wall time is separate; these are caps, not elapsed-time
 predictions. Each candidate worker retains a 120-second, 12-GiB RSS and 500-step
-cap. Source search reserves 20% of each arm's worker budget for confirmation.
+cap. Source search reserves 20% of each formal arm's worker budget for confirmation.
+The pilot has one task and no confirmation, so its dedicated allowance is not
+reduced by those formal-search fractions. Before a paid call, the controller
+checks that it can cover `(2 + search_folds * counterfactual_variants) * worker_seconds`:
+nine repeat folds, seven variants and two contract workers need at most 7,800
+worker seconds at the 120-second cap. The default pilot allows 8,100 seconds.
+Native generation-zero methods reuse their verified common source replays when
+code, grader namespace, numerical budget, preprocessing, folds and comparator
+match; they no longer consume each arm's allowance on duplicate baseline fits.
 
 ## Scientific Critic and provenance
 
@@ -148,6 +156,44 @@ git switch main && git merge --ff-only FETCH_HEAD
 
 Then run the key/start portion above. Do not overwrite frozen plans, edit old
 hashes or remove failed assessments to force continuation with different code.
+
+### Recover the original quota-failed pilot without regenerating its paid proposal
+
+The initial `.5`-hour pilot inherited the formal `.8 * .7` source-task fractions,
+leaving only 1,008 seconds for the repeat task, including duplicate seed fitting.
+`Task search compute quota exhausted` invalidated a candidate before all its
+numerical checks completed. It does not show that the paid model or hypothesis
+was wrong.
+
+After updating, keep `round26_critic_01` intact and start a new namespace:
+
+```bash
+cd /root/autodl-tmp/virtual_cell
+read -rsp 'DeepSeek API key: ' DEEPSEEK_API_KEY
+echo
+export DEEPSEEK_API_KEY
+screen -dmS vcell26recover bash scripts/run_round26_autodl.sh \
+  --name round26_critic_02 \
+  --round25-run /root/autodl-tmp/vcell-work/runs/round25_self_correct_02 \
+  --recover-pilot-from /root/autodl-tmp/vcell-work/runs/round26_critic_01
+```
+
+Recovery is limited to an actual native candidate invalidated by evaluation quota
+before matched search. It verifies the unchanged source folds, fixed comparator,
+candidate-visible numerical budget, paid action and code hashes, original native
+parent/child IDs, and completed API requests. It refuses ambiguous requests,
+different data or ordinary algorithm errors. The original decision/audits and
+API ledger are imported verbatim; previous requests still count against the six
+pilot requests. The same code is evaluated anew in protected workers. There is
+no new initial Critic or mutation call; a successful numerical evaluation still
+requires the normal post-result Critic review. A new algorithm failure remains a
+failed gate. No prior assessment is relabelled valid.
+
+`pilot_recovery.json` records source checksums, native lineage and previous usage;
+the summary adds prior worker seconds instead of hiding failed-attempt compute.
+Those historical seconds are separate from the new campaign's resource caps.
+The source run is read only. For later interruptions of `_02`, repeat the same
+command including `--recover-pilot-from` and append `--resume`.
 
 ## Review outputs
 

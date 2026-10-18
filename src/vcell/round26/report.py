@@ -88,7 +88,8 @@ def report(root,cfg,stage):
         'total_requests_including_gate':pilot['api_requests']+sum(r['requests'] for r in usage),
         'total_assessment_cache_reuses':sum(len(events(p)) for p in root.rglob('cache_reuse.jsonl')),
         'total_provider_cache_reuses':sum(len(events(p)) for p in root.rglob('provider_cache_reuse.jsonl')),
-        'total_worker_seconds':charged(root/'baseline_budget')+charged(root/'pilot/meta')+sum(charged(root/'arms'/arm) for arm in arms),
+        'prior_recovery_worker_seconds':pilot.get('recovery',{}).get('prior_worker_seconds',0.),
+        'total_worker_seconds':charged(root/'baseline_budget')+charged(root/'pilot/meta')+sum(charged(root/'arms'/arm) for arm in arms)+pilot.get('recovery',{}).get('prior_worker_seconds',0.),
         'interpretation':'Historical development retest, one seed. Equal caps do not imply equal actual requests or candidates. A source signal candidate is not a confirmed transfer discovery.'}
     write_json(root/'summary.json',summary)
     lines=['# Round26 scientific self-correction','',

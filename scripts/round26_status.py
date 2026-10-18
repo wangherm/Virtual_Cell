@@ -13,7 +13,7 @@ def main():
     root=Path(a.work_dir)/'runs'/a.name
     if not (root/'campaign_plan.json').exists():print('ROUND26 NOT STARTED:',root);return
     cfg=read(root/'campaign_plan.json')['config'];calls=0;seconds=charged(root/'baseline_budget')
-    for name in ('stage.json','INCOMPLETE.json','LIVE_SMOKE_COMPLETE.json'):
+    for name in ('stage.json','pilot_budget.json','INCOMPLETE.json','LIVE_SMOKE_COMPLETE.json'):
         if (root/name).exists():
             row=read(root/name)
             if name=='LIVE_SMOKE_COMPLETE.json':row={k:v for k,v in row.items() if k!='files'}
