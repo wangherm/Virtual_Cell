@@ -27,10 +27,63 @@ remain unresolved. Agent engineering success and biological prediction success
 are separate claims. See the [research history](docs/PROJECT_STATUS.md).
 
 This repository contains code, configurations and documented protocols.
-**A Git pull does not download server-trained weights or private experiment
-artifacts.** Selected model binaries can be distributed as separate release
-assets after export and provenance review. No server weight upload is implied
-by this source update.
+**A Git pull does not download model binaries or private experiment artifacts.**
+The reviewed [research model release](https://github.com/wangherm/Virtual_Cell/releases/tag/research-models-2026-10-19)
+distributes the historical Qwen Student A adapter and seven frozen Round26
+algorithms separately from Git history. Round27 is excluded.
+
+## Released model: configuration, dependencies and inference
+
+The Qwen adapter predicts **2,000 ordered gene deltas for 196 saved perturbation
+targets**. It uses Qwen3-0.6B-Base at revision
+`da87bfb608c14b7cf20ba1ce41287e8de496c0cd`, BF16, eight control tokens and LoRA
+rank 8 / alpha 16 on `q_proj` and `v_proj`. The 54.75 MB checkpoint stores 13,645,776
+trainable parameters, prompts and normalization, with best epoch 7; the full
+base is downloaded separately. It is a custom regression adapter, not a
+standalone text-generation model. Its State-derived non-commercial terms are
+included with the release.
+
+The seven Round26 methods instead use a **1,809-gene** source/query contract and
+refit from legal source arrays. Their panel and inputs cannot be substituted
+for the Qwen adapter's. They include research/diagnostic candidates, not seven
+validated best models.
+
+The [published catalog](assets/research_release_20261019/catalog.json) records
+individual hashes and the release archive checksum; [adapter configuration](assets/research_release_20261019/qwen_student_a/config.json),
+ordered vocabularies and exact algorithm source files are also readable in Git.
+
+Use Python >=3.10 and the repository dependencies. Qwen additionally requires
+the `foundation` extra, including transformers==4.57.3 and peft==0.18.0:
+
+```bash
+# In an existing compatible environment; see the server guide for a new GPU setup.
+python -m pip install -e '.[foundation]'
+```
+
+After downloading and checksum-verifying the release archive and preparing the
+pinned base, predict from a query NPZ containing `baseline`, `genes`, `targets`
+and unique `row_ids`:
+
+```bash
+python scripts/predict_release.py qwen \
+  --release-dir /absolute/path/to/virtual-cell-research-models \
+  --model-dir /absolute/path/to/Qwen3-0.6B-Base \
+  --input /absolute/path/to/queries.npz \
+  --output /absolute/path/to/new_predictions.npz \
+  --device cuda --batch-size 16
+```
+
+`baseline` must be the original-preprocessing matched-control mean expression,
+in exact saved gene order; raw counts, another panel and unseen targets are
+rejected or unsupported. The helper applies saved standardization and returns
+signed expression deltas. It supports relocating a base snapshot only when
+its content hashes match. CPU inference uses float32 by default. No DeepSeek
+API key is needed.
+
+See the [complete model guide](docs/MODEL_RELEASE_20261019.md) for download and
+base preparation commands, the query schema/example, exact configuration,
+licensing, software checks and protected Round26 method inference. Original
+biological prediction accuracy has not been independently rerun for this release.
 
 ## Main research components
 

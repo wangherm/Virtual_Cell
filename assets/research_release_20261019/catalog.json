@@ -1,0 +1,123 @@
+{
+  "format": "vcell-research-release-v1",
+  "release": "research-models-2026-10-19",
+  "models": [
+    {
+      "id": "qwen_student_a",
+      "kind": "qwen_adapter",
+      "file": "qwen_student_a/adapter.pt",
+      "sha256": "37ad93d5f3d736a816317b983fc02fa3387933eae2288867591e293afc6e2cf4",
+      "bytes": 54748485,
+      "genes": 2000,
+      "perturbations": 196,
+      "best_epoch": 7,
+      "trainable_parameters": 13645776,
+      "trainable_tensors": 121,
+      "base_included": false,
+      "state_distillation_terms": "licenses/MODEL_LICENSE.md",
+      "independent_validation": false
+    },
+    {
+      "id": "meta_transfer_b3e0f6940b",
+      "kind": "evolved_algorithm",
+      "task": "transfer",
+      "arm": "meta",
+      "file": "methods/b3e0f6940bc5ab734007d1cd07641843f5d102e4656033d884012f9893a90c66.py",
+      "sha256": "b3e0f6940bc5ab734007d1cd07641843f5d102e4656033d884012f9893a90c66",
+      "bytes": 2527,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "meta_transfer_804ace7b90",
+      "kind": "evolved_algorithm",
+      "task": "transfer",
+      "arm": "meta",
+      "file": "methods/804ace7b90a1f33fd4c4fba444b25e5ec7d0a6ca173ef5d8ef6024d31446870a.py",
+      "sha256": "804ace7b90a1f33fd4c4fba444b25e5ec7d0a6ca173ef5d8ef6024d31446870a",
+      "bytes": 7218,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "repair_repeat_29e9a57329",
+      "kind": "evolved_algorithm",
+      "task": "repeat",
+      "arm": "repair",
+      "file": "methods/29e9a5732963a9b4b80fcde5ed036d219d605c3d7645e006243eb9e2859149e2.py",
+      "sha256": "29e9a5732963a9b4b80fcde5ed036d219d605c3d7645e006243eb9e2859149e2",
+      "bytes": 34604,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "repair_transfer_3b6fa3a74a",
+      "kind": "evolved_algorithm",
+      "task": "transfer",
+      "arm": "repair",
+      "file": "methods/3b6fa3a74a500ef39cab195408552bd047ce275ddae25e6d241d01f6d618fbd0.py",
+      "sha256": "3b6fa3a74a500ef39cab195408552bd047ce275ddae25e6d241d01f6d618fbd0",
+      "bytes": 5845,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "repair_transfer_bcf2681a74",
+      "kind": "evolved_algorithm",
+      "task": "transfer",
+      "arm": "repair",
+      "file": "methods/bcf2681a74a375a2410d18d70910df9ea2ca90e61eaad77a9466c57138bf1adf.py",
+      "sha256": "bcf2681a74a375a2410d18d70910df9ea2ca90e61eaad77a9466c57138bf1adf",
+      "bytes": 4177,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "shinka_repeat_2710fa32d6",
+      "kind": "evolved_algorithm",
+      "task": "repeat",
+      "arm": "shinka",
+      "file": "methods/2710fa32d6f089b68b386a024f02424b4b2fe678f074c22c54a5e5f007c05688.py",
+      "sha256": "2710fa32d6f089b68b386a024f02424b4b2fe678f074c22c54a5e5f007c05688",
+      "bytes": 13838,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    },
+    {
+      "id": "shinka_transfer_e520dc6c8d",
+      "kind": "evolved_algorithm",
+      "task": "transfer",
+      "arm": "shinka",
+      "file": "methods/e520dc6c8d85df524ef0226dbe39fca3c20b82bb0f230efca85378320891b92e.py",
+      "sha256": "e520dc6c8d85df524ef0226dbe39fca3c20b82bb0f230efca85378320891b92e",
+      "bytes": 4790,
+      "genes": 1809,
+      "selection": "existing source-only frozen shortlist; includes diagnostic Pareto candidates",
+      "source_templates_included": false,
+      "independent_validation": false
+    }
+  ],
+  "server_export_sha256": "8b3c06092c2e4349057b328797b4d6ef5da951f88768ce126ec96f7a7033f9e4",
+  "export_source_commit": "3c893e487dbb1b410ffcd31b58db8e9339f70c1f",
+  "round27_status": "unfinished; not included",
+  "standalone_foundation_model": false,
+  "independent_validation": false,
+  "release_asset": {
+    "name": "virtual-cell-research-models-20261019.tar.gz",
+    "url": "https://github.com/wangherm/Virtual_Cell/releases/download/research-models-2026-10-19/virtual-cell-research-models-20261019.tar.gz",
+    "bytes": 50339325,
+    "sha256": "cb0c58746c108cc4b6891501c42fe1bcbae193e505fef594c397fa72b00518b0"
+  }
+}

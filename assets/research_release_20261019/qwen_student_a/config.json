@@ -1,0 +1,42 @@
+{
+  "id": "qwen_student_a",
+  "kind": "qwen_adapter",
+  "file": "qwen_student_a/adapter.pt",
+  "sha256": "37ad93d5f3d736a816317b983fc02fa3387933eae2288867591e293afc6e2cf4",
+  "bytes": 54748485,
+  "genes": 2000,
+  "perturbations": 196,
+  "best_epoch": 7,
+  "trainable_parameters": 13645776,
+  "trainable_tensors": 121,
+  "base_included": false,
+  "state_distillation_terms": "licenses/MODEL_LICENSE.md",
+  "independent_validation": false,
+  "checkpoint_format": "vcell-qwen-adapter-v1",
+  "model_spec": {
+    "model_id": "Qwen/Qwen3-0.6B-Base",
+    "revision": "da87bfb608c14b7cf20ba1ce41287e8de496c0cd",
+    "dtype": "bfloat16",
+    "control_tokens": 8,
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gradient_checkpointing": true,
+    "local_files_only": true
+  },
+  "backbone_file_sha256": {
+    "config.json": "504a6b58c4271583724e66584b6b7698aea18450209df6b2f7582df0e89cee59",
+    "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+    "model.safetensors": "cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba",
+    "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+    "tokenizer_config.json": "3c04ed3ca964ea2f6b2b5faf0dc4d31aec1cb1e8b4bcf63f402d295046b422b5",
+    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+  },
+  "normalization": {
+    "mean": "Saved per-gene training control mean",
+    "std": "Saved per-gene training control standard deviation",
+    "scale": 0.16227512061595917
+  },
+  "training_data_fingerprint": "0cddf13368f9d03f318ee39594866bdb9f6084137cc31c7f0da3d9ede20acff9",
+  "training_run_fingerprint": "3be12128556d69637ce6a49e2240a8ca6208494f5e58683728908c7d1429a717",
+  "raw_preprocessing_audit_included": false
+}
