@@ -12,6 +12,11 @@ checkpoints/
 *.npz
 *.pt
 *.ckpt
+*.pth
+*.safetensors
+*.tar.gz
+*.bundle
+closeout/
 *.zip
 .env
 credentials*

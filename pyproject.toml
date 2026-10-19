@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vcell-dual"
 version = "0.4.0"
-description = "Four-teacher four-student perturbation-response experiments"
+description = "Perturbation-response prediction and autonomous Virtual Cell research experiments"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

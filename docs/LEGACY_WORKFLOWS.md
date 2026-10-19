@@ -1,0 +1,390 @@
+# Archived workflows before the project closeout
+
+This is a historical reference, not the current project status. Round27 is unfinished.
+Use the [current README](../README.md) and [closeout guide](PROJECT_CLOSEOUT.md) first.
+Historical defaults and claims below describe earlier workflows.
+
+# VCell Teacher–Student Experiments
+
+[![Tests](https://github.com/wangherm/Virtual_Cell/actions/workflows/tests.yml/badge.svg)](https://github.com/wangherm/Virtual_Cell/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
+
+A command-line research pipeline for predicting **mean gene-expression changes**
+under perturbation across cellular contexts. Clone it onto a Linux server, install
+the Python package, and run experiments from the terminal. No Colab, notebook,
+Google Drive, or external model API is required.
+
+Two workflows are available: the original reference-model experiments and a
+pretrained **Qwen3 numerical student** with optional State/scGPT/scFoundation/Geneformer
+teacher caches. Biological weights are downloaded separately. This repository
+predicts mean responses, not single-cell distributions.
+
+## Model-selection agent architecture
+
+The next research direction is [task- and background-conditioned expert selection](MODEL_SELECTION_AGENT.md).
+The architecture registers executable P4 predictors and fit-only references,
+checks source-OOF capability evidence, supports budgeted tool calls and checkpoint
+recovery, and separates private evaluation from planning. A synthetic offline
+demo exercises fixed/rule/risk/workflow baselines. [Live DeepSeek pilots](LIVE_DEEPSEEK_PILOT.md)
+now connect the actual API to this controller. The formal IFNG policy comparison
+uses [Round17 nested source OOF](ROUND17_SOURCE_OOF_AGENT.md): newly refitted
+cell-line-held experts, measured capability profiles, paired routing baselines,
+and optional bounded DeepSeek prediction-head code trials. Outer labels never
+enter proposal or routing observations. No improvement is claimed by a connectivity pilot.
+
+[Round18 Virtual Cell Scientist](ROUND18_SCIENTIST.md) adds a selectable zero
+expert, source-scoped SQLite memory, traceable Europe PMC abstract retrieval,
+literature/no-literature/random/fixed search controls and paired conservative
+routing tests. It reuses exact completed source fits and preserves private outer evaluation.
+
+[Round19 dual-scientist predictor](ROUND19_DUAL_PREDICTOR.md) trains a local
+DeepSeek-R1-Distill-Qwen-1.5B model with numerical inputs, a signed response head
+and optional LoRA. Separate API scientists propose and review 100 source-only
+candidate rounds, with cross-fitted numerical teachers, fixed fusion/MLP/Qwen
+controls, durable accounting and private evaluation after recipe freeze.
+
+[Round20 signal and reference controls](ROUND20_SIGNAL_AND_REFERENCE.md) audits
+technical replicate consistency, calibrates prediction amplitude using source OOF,
+tests pretrained/random/MLP controls, and learns a bounded correction to legal
+same-target experimental references. Reproducible nonzero source gains gate a
+maximum twelve-slot fixed/random/single/dual comparison. Agents can design small
+head code and parameters inside the existing isolated admission protocol; they
+cannot change data partitions or evaluation. All choices freeze before held
+development scoring, and a failed signal gate yields an explicit negative report.
+
+```bash
+bash scripts/run_round20_autodl.sh --name round20_signal_01 --parallel-jobs 3
+.venv/bin/python scripts/round20_status.py --name round20_signal_01
+```
+
+[Round21 signature transfer](ROUND21_SIGNATURE_TRANSFER.md) replaces pooled
+signal screening with source-only target-level repeat/mismatch diagnostics. It
+audits raw library sizes and matched NT memberships, separately measures supported
+Rep1-to-Rep2 prediction and whole-cell-line transfer, and compares references on
+common support. Reliable source evidence gates isolated autonomous head-code search;
+large frozen language backbones are not repeatedly retrained.
+
+```bash
+bash scripts/run_round21_autodl.sh --name round21_signal_01 --parallel-jobs 3
+.venv/bin/python scripts/round21_status.py --name round21_signal_01
+```
+
+```bash
+bash scripts/run_model_agent_autodl.sh demo --output /root/autodl-tmp/vcell-work/runs/model_agent_arch_01
+```
+
+Live pilots default to `deepseek-v4-pro`, thinking enabled, effort `max`, three
+sequential episodes and eight API attempts per episode. They support synthetic
+tools or completed P4 experts, durable request/token accounting, checkpoint
+resume and small review packages. Set `DEEPSEEK_API_KEY` on the server as documented.
+
+```bash
+bash scripts/run_deepseek_autodl.sh --name deepseek_pilot_01 --mode synthetic --rounds 3
+```
+
+## Background acquisition and inspection
+
+The latest training entry point is [Round15 P4: full eligible Mixscale comparison](ROUND15_P4.md):
+matched historical development tasks, reference vs expanded data, STRING Ridge
+and rank16/rank32 factor heads, three seeds, parallel workers and checkpoint resume.
+First complete the [Mixscale adaptation report and data preparation](MIXSCALE_ADAPTER.md).
+
+The preceding [Round15 architecture/training screen and Mixscale inspection](ROUND15.md)
+audits and reuses completed Round12–14 assets, repairs the ID-only control,
+adds matched knowledge controls and response-reference models, and inspects one
+public perturbation dataset in parallel. The broader Round15 confirmation, native
+model, new IFNG holdout and few-shot stages remain separate. [Round14](ROUND14.md)
+documents the preceding 21-head screen.
+
+Start with the [anonymous public-atlas workflow](PUBLIC_BACKGROUND_INSPECT.md):
+Tabula Sapiens tissue subsets, HLCA core and the cross-tissue immune atlas.
+It downloads pinned CELLxGENE H5AD versions without cloud accounts and inspects
+X, raw/X, all layers and donor/tissue/assay annotations separately. Default:
+five files, approximately 15.7 GB. No training or cell filtering is performed.
+
+```bash
+bash scripts/inspect_public_background_autodl.sh
+```
+
+The [scBaseCount inspection guide](BACKGROUND_INSPECT.md) prepares a bounded
+human K562/RPE1/H1 candidate download, resumable cloud transfers, sampled H5AD QC,
+and an HTML/JSON review package. Downloaded samples remain quarantined pending
+biological/source review. This workflow does not train models. Google Cloud
+Marketplace subscription and Application Default Credentials are required for
+cloud access; local metadata and H5AD inspection can run offline.
+
+## Round 8: gene knowledge and response prediction
+
+The [Round 8 server guide](ROUND8.md) compares fixed gene-text embeddings,
+typed GO/Reactome/STRING associations, module supervision and five-teacher
+distillation. It includes small-network controls, shuffled knowledge controls,
+three generalization protocols, paired seeds, calibration, resumable training
+and a review archive. It reuses the local Qwen snapshot; only the initial public
+knowledge preparation needs network access. No paid model API is used.
+
+```bash
+bash scripts/run_round8_autodl.sh --name round8_01 --resume
+```
+
+Default: 81 student jobs, two concurrent processes on one GPU. See the guide for
+a short smoke run, disk reserve, exact inputs and progress commands. The formal
+test set stays sealed. This is an exploratory numerical experiment, not a
+validated mechanistic reasoning system.
+
+## Four teachers → two students → one selected model
+
+The [four-teacher AutoDL guide](FOUR_TEACHER_RUN.md) runs actual frozen
+scGPT, State SE-100M, scFoundation and Geneformer V1-10M encoders with separately
+trained response heads, then two independent Qwen students on all prepared
+training rows. It selects one checkpoint using validation only. This is an
+**exploratory experiment with unverified pretraining overlap**. State uses its
+Embedding model, not native State Transition predictions. See
+[third-party model and code terms](../THIRD_PARTY_NOTICES.md), including State's
+non-commercial restrictions on distilled derivatives.
+
+```bash
+bash scripts/run_421_autodl.sh --name four_teacher_01
+```
+
+## Background modeling and teacher specialization
+
+The [round-6 guide](ROUND6.md) runs six matched Qwen ablations: the current
+supervised model, a reference-response plus background-interaction model, equal
+distillation, module-specific distillation, specialty-trained response heads,
+and a gated-equal control. Nested teacher calibration keeps each outer context's
+labels out of its teacher selection. Default: two paired student seeds, cached
+encoders only, no model downloads, no final test evaluation.
+
+```bash
+bash scripts/run_round6_autodl.sh --name round6_01
+```
+
+Add `--challenge-data /root/autodl-tmp/vcell-work/prepared/vcc2025_c_01` to run
+an additional H1 data-expansion comparison on an identical common gene panel
+with the same maximum optimizer-step budget. This does not run a cross-species
+benchmark. Detailed progress, grouped comparisons and a compact review archive
+are written automatically.
+
+## Fifth teacher and algorithm ablations
+
+The [round-5 guide](ROUND5.md) adds UCE-33, a low-rank Ridge baseline,
+training-context cross-fitted teacher reliability, GO/Reactome relation features,
+and balanced regression losses. Seven Qwen ablations use the same original full
+validation panel. Existing A/B/C outputs are preserved; final test labels stay
+sealed. UCE is a frozen cell encoder with a custom response head, not a native
+perturbation decoder. The default is one seed; this is an exploratory comparison.
+
+```bash
+bash scripts/run_round5_autodl.sh --name round5_01
+```
+
+## Third student trained on challenge data
+
+The [student C guide](STUDENT_C_VCC.md) adds an independent, supervised
+Qwen student trained on the official 2025 Virtual Cell Challenge training data.
+It streams the large source file, preserves the existing distilled A/B models,
+and compares all three on identical validation rows and genes. The 2026 challenge
+does not provide challenge-specific perturbation training labels. This is an
+internal data-source comparison, not an official challenge submission or a
+controlled distillation ablation.
+
+```bash
+bash scripts/run_student_c_autodl.sh --name vcc2025_c_01
+```
+
+## Pretrained Qwen server smoke test
+
+On the existing AutoDL server, reuse the prepared real-data pilot:
+
+```bash
+cd /root/autodl-tmp/virtual_cell
+git pull --ff-only
+bash scripts/run_qwen_autodl.sh
+```
+
+The script preserves the installed CUDA PyTorch, installs the optional Qwen
+dependencies, and downloads pinned `Qwen/Qwen3-0.6B-Base` weights into the data
+disk. It trains on 128 prepared training groups for two epochs and validates on
+64 groups. **This first check is supervised Qwen, not three-teacher distillation.**
+No test scores are revealed. Watch `vcell-work/logs/qwen_smoke_01.log`; successful
+runs print `QWEN RUN COMPLETE` and write `runs/qwen_smoke_01/summary.csv`.
+
+Run inside `screen` for SSH disconnection protection. Resume an unchanged run
+with `bash scripts/run_qwen_autodl.sh --resume`. Use a fresh output directory for
+changed code/configuration. See **[the foundation-model guide](FOUNDATION.md)**
+for checkpoint reload, larger pilots and the three-teacher preparation pipeline.
+
+After the Qwen smoke succeeds, connect the first real biological teacher:
+
+```bash
+bash scripts/run_scgpt_autodl.sh
+```
+
+This downloads and verifies the author-released scGPT-human checkpoint (about
+207 MB), extracts frozen control features, trains a conditional response head,
+and runs supervised versus scGPT-distilled Qwen. It reuses the working CUDA
+environment and local Qwen files. See **[the scGPT run guide](SCGPT_FIRST_RUN.md)**
+for progress, outputs, larger experiments and the published-source audit limits.
+
+There is one Qwen student architecture; each comparison arm trains a separate
+copy from the base model. The strict three-teacher workflow requires audited
+holdout exclusions. The exploratory four-teacher workflow above explicitly
+allows unverified pretraining overlap and uses State Embedding with a trained
+response head. Missing teachers are never replaced with random networks.
+
+## Quick start on a server
+
+The following is the original four-reference-teacher workflow, trained from
+scratch. It remains available as a baseline.
+
+Requires Git, Bash, Python **3.10+** with venv/pip, and enough disk space for PyTorch
+and experiment outputs. Python 3.12 is used in CI. The synthetic check works on CPU
+and downloads no biological dataset.
+
+```bash
+git clone https://github.com/wangherm/Virtual_Cell.git
+cd Virtual_Cell
+
+bash scripts/setup.sh cpu
+source .venv/bin/activate
+python -m pytest -q
+python scripts/smoke_test.py --work-dir runs/smoke_01 --device cpu
+```
+
+This generates synthetic counts, preprocesses them, trains all four teachers and
+all five four-student experiments, and writes a validation report:
+
+```text
+runs/smoke_01/
+├── demo/prepared/                     # Prepared synthetic data and audit
+└── run/
+    ├── run_manifest.json             # Effective configuration and fingerprints
+    ├── seed_0/                       # Checkpoints, predictions and training logs
+    └── evaluation_validation/
+        ├── report.html
+        ├── summary.csv
+        └── paired_comparisons.csv
+```
+
+Use a fresh work directory for a new run. To continue the same smoke test:
+
+```bash
+python scripts/smoke_test.py --work-dir runs/smoke_01 --device cpu --resume
+```
+
+Synthetic scores check the software workflow; they are not evidence of biological
+generalization. For CUDA installation, persistent storage, tmux, updating with
+Git, and downloading reports, see the **[server guide](SERVER.md)**.
+
+## Run a real-data experiment
+
+All commands below run from the repository root with the environment activated.
+You supply the .h5ad raw-count files; no real dataset is bundled.
+
+```bash
+mkdir -p configs/local
+cp configs/data.example.yaml configs/local/data.yaml
+python -m vcell inspect /absolute/path/to/k562.h5ad
+```
+
+Edit `configs/local/data.yaml`: set **absolute paths** for every dataset and
+`output_dir`, verify the gene/perturbation/batch/count fields and control labels,
+and review the train/validation/test contexts. Inspect each input, not only K562.
+The [data guide](DATA.md) explains the schema and preprocessing audit.
+
+```bash
+python -m vcell prepare --manifest configs/local/data.yaml
+
+# Replace /absolute/path/to/prepared with the manifest's output_dir.
+python -u -m vcell run --config configs/pilot.yaml \
+  --data /absolute/path/to/prepared --output runs/pilot_01 --device cpu
+
+# After validating the pilot, run the full budget. Use cuda on a tested GPU server.
+python -u -m vcell run --config configs/real.yaml \
+  --data /absolute/path/to/prepared --output runs/real_01 --device cpu
+```
+
+| Preset | Seeds | Teacher epochs | Student epochs | Patience |
+| --- | --- | --- | --- | --- |
+| `configs/smoke.yaml` | 0 | 5 | 5 | 5 |
+| `configs/pilot.yaml` | 0 | 20 | 20 | 6 |
+| `configs/real.yaml` | 0, 1, 2 | 100 | 80 | 15 |
+
+Budgets are upper bounds; validation early stopping can shorten training. Full
+real-data CPU training may be slow. See [configuration rules](../configs/README.md)
+before copying or moving YAML files.
+
+## Evaluation and inference
+
+`run` automatically writes **validation** metrics and an HTML report. Freeze the
+experiment choice using validation results before revealing test scores:
+
+```bash
+python -m vcell evaluate --run runs/real_01 --include-test
+```
+
+The primary comparison is `contrastive/mean` versus `kd/mean`. In
+`paired_comparisons.csv`, `delta_mse` is candidate minus reference; negative values
+favor the candidate. Keep the no-change and mean-transfer baselines in the
+comparison. See [experiment design](EXPERIMENTS.md).
+
+For inference in a new context, provide control cells and a CSV of training-known
+perturbations. Select a mode using validation results first; `supervised` below
+is an example, not a claim that it is best.
+
+```bash
+python -m vcell predict-controls \
+  --checkpoint runs/real_01/seed_0/supervised/best.pt \
+  --manifest configs/local/query.yaml \
+  --targets /absolute/path/to/targets.csv \
+  --output runs/new_context_01 --device cpu
+```
+
+See [control-only inference](DATA.md#control-only-inference) for query and
+target formats. Outputs are group means, not simulated individual cells.
+
+## Project layout
+
+```text
+src/vcell/             Python package and the python -m vcell / vcell CLI
+configs/               Shared smoke, pilot, full-training and data templates
+scripts/               Server setup, terminal smoke test and source packaging
+tests/                 Core and server workflow tests; no notebook dependency
+docs/                  Server, data, experiment and reference documentation
+docs/legacy/           Archived v0.2.1 Chinese Colab walkthrough
+docs/qa/               Historical synthetic QA reports
+examples/colab/        Archived optional notebook, outside the server workflow
+optional_tests/        Notebook and external-API extension tests, opt-in only
+```
+
+`data/`, `runs/`, `logs/`, `.venv/` and `configs/local/` are ignored by Git. Keep
+large inputs and results on persistent server storage; a Git pull only updates
+source code. The default pipeline uses one device, not distributed training.
+
+## Documentation
+
+- [Round 26: verified scientific critic, matched Pareto evolution and separate Meta extension](ROUND26_SCIENTIFIC_CRITIC.md)
+- [Round 27: persistent Virtual Cell agent, balanced tasks, domain knowledge and hypothesis revision memory](ROUND27_VIRTUAL_CELL_AGENT.md)
+- [Round 25: matched Shinka evolution, bounded code repair and source-only scientific strategy](ROUND25_SELF_CORRECTING_EVOLUTION.md)
+- [Round 24: frozen winner replay, mechanism/data ablations, separate identity controls and bounded module evolution](ROUND24_MECHANISM_EVOLUTION.md)
+- [Round 23: persistent agent evolution, data broker, source repair memory and bounded 100-candidate campaigns](ROUND23_EVOLUTION_FRAMEWORK.md)
+- [Round 22: ShinkaEvolve autonomous method discovery, isolated candidates and source confirmation](ROUND22_SHINKA_EVOLVE.md)
+
+- [Round 11: source-context calibration, H1 few-shot diagnostic and frozen Jurkat release](ROUND11.md)
+- [Round 12: target representations, split-half diagnostics and controlled training-data expansion](ROUND12.md)
+- [Round 13: full-network diffusion, low-rank interactions and seen-target residuals](ROUND13.md)
+- [Round 10: grouped backgrounds, new context holdouts and limited warmup](ROUND10.md)
+- [Round 9: full background training, module controls and diagnostics](ROUND9.md)
+- [Public background cleaning, donor splits and audit reports](BACKGROUND_PREPARATION.md)
+- [Round 7: parallel students, H1 expansion and native mechanism reviewers](ROUND7.md)
+- [Server installation and operations](SERVER.md)
+- [Data preparation and inference](DATA.md)
+- [Models, losses, splits and experiment interpretation](EXPERIMENTS.md)
+- [Importing external teacher predictions](EXTERNAL_TEACHERS.md)
+- [Validation scope and historical evidence](VALIDATION.md)
+- [References](REFERENCES.md)
+- [Optional API-driven training controller](advanced/AGENT.md)
+
+Code is released under the [MIT license](../LICENSE). External datasets, models and
+weights retain their own licenses. Version 0.3.0 changes deployment and project
+organization; it does not change the teacher–student model or loss design.
