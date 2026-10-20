@@ -149,6 +149,11 @@ snapshot is **not a resumable backup**.
 For explicit model export, progress commands, private backup guidance and
 GitHub publication, follow [project closeout](docs/PROJECT_CLOSEOUT.md).
 
+Before closing the server, use the [read-only privacy audit](docs/SERVER_PRIVACY_AUDIT.md)
+to inventory potential tokens, SSH/cloud credentials, runtime environment
+variables and private metadata. Reports omit credential values and remain
+private; the tool performs no deletion or credential revocation.
+
 ## Installation and a small reproducible run
 
 For a new checkout, install the CPU environment and exercise the original

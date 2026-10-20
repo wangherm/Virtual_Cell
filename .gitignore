@@ -17,6 +17,8 @@ checkpoints/
 *.tar.gz
 *.bundle
 closeout/
+private-audit*/
+security_audits/
 *.zip
 .env
 credentials*
