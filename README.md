@@ -154,6 +154,10 @@ to inventory potential tokens, SSH/cloud credentials, runtime environment
 variables and private metadata. Reports omit credential values and remain
 private; the tool performs no deletion or credential revocation.
 
+After reviewing findings, the separate [credential cleanup tool](docs/SERVER_PRIVACY_CLEANUP.md)
+previews allowlisted removals by default. Applying cleanup preserves research
+artifacts and SSH access; session credentials require a separate opt-in.
+
 ## Installation and a small reproducible run
 
 For a new checkout, install the CPU environment and exercise the original

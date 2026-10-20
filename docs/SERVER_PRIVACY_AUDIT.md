@@ -1,5 +1,9 @@
 # Read-only server privacy audit before shutdown
 
+For a separate allowlisted cleanup tool after reviewing the report, see
+[Server credential cleanup](SERVER_PRIVACY_CLEANUP.md). The audit itself never
+deletes anything.
+
 `scripts/server_privacy_audit.py` is a standalone Python 3.10+ standard-library
 tool. It inventories potential credentials and private metadata on your own
 server. It does not delete, revoke, upload, execute configuration files, inspect
